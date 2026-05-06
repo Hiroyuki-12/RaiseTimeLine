@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    PostMapper.xml: PostMapper インターフェースの各メソッドに対応する SQL を定義する。
+    namespace に PostMapper の完全修飾クラス名を指定することでインターフェースと紐づく。
+-->
+<mapper namespace="com.raisetimeline.post.PostMapper">
+
+    <!--
+        insert: posts テーブルに1件 INSERT する。
+        useGeneratedKeys="true" : DB が自動採番した id を取得する
+        keyProperty="id"        : 取得した id を Post.id フィールドにセットする
+    -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO posts (user_id, content, created_at, updated_at)
+        VALUES (#{userId}, #{content}, NOW(), NOW())
+    </insert>
+
+    <!--
+        findPageOrderByCreatedAtDesc: ポストをページネーション付きで新しい順に取得する（タイムライン）。
+        posts と users を JOIN して投稿者の displayName・username を合わせて返す。
+        列エイリアスを PostResponse の Record コンポーネント名（camelCase）に合わせることで
+        MyBatis が自動マッピングする。
+    -->
+    <select id="findPageOrderByCreatedAtDesc"
+            resultType="com.raisetimeline.post.dto.PostResponse">
+        SELECT
+            p.id            AS id,
+            p.content       AS content,
+            u.id            AS authorId,
+            u.username      AS authorUsername,
+            u.display_name  AS authorDisplayName,
+            p.created_at    AS createdAt,
+            p.updated_at    AS updatedAt
+        FROM posts p
+        INNER JOIN users u ON p.user_id = u.id
+        ORDER BY p.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!--
+        countNewerThan: 指定日時より後に作成されたポスト件数を返す。
+        フロントエンドが 30 秒ごとにポーリングして新着件数を確認するために使う。
+    -->
+    <select id="countNewerThan" resultType="long">
+        SELECT COUNT(*)
+        FROM posts
+        WHERE created_at > #{since}
+    </select>
+
+    <!--
+        findById: ID でポストを1件検索する。
+        INSERT 後に DB が生成したタイムスタンプを取得する目的でも使う。
+    -->
+    <select id="findById" resultType="com.raisetimeline.post.Post">
+        SELECT id, user_id, content, created_at, updated_at
+        FROM posts
+        WHERE id = #{id}
+    </select>
+
+    <!--
+        update: content と updated_at を更新する。
+        id で対象行を特定し、updated_at は NOW() で現在時刻に更新する。
+    -->
+    <update id="update">
+        UPDATE posts
+        SET content    = #{content},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!--
+        deleteById: ID でポストを1件削除する。
+    -->
+    <delete id="deleteById">
+        DELETE FROM posts WHERE id = #{id}
+    </delete>
+
+</mapper>

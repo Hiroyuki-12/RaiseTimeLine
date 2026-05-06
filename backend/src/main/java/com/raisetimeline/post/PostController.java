@@ -1,0 +1,111 @@
+package com.raisetimeline.post;
+
+import com.raisetimeline.post.dto.CreatePostRequest;
+import com.raisetimeline.post.dto.PostResponse;
+import com.raisetimeline.post.dto.UpdatePostRequest;
+import jakarta.validation.Valid;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * ポストの CRUD に関する HTTP リクエストを受け付けるコントローラー。 SecurityConfig の anyRequest().authenticated() により、
+ * すべてのエンドポイントで JWT 認証が必須になる。
+ */
+@RestController
+@RequestMapping("/api/posts")
+public class PostController {
+
+    private final PostService postService;
+
+    /** コンストラクタ。Spring が PostService を自動的に注入する。 */
+    public PostController(PostService postService) {
+        this.postService = postService;
+    }
+
+    /**
+     * タイムライン取得エンドポイント（ページネーション付き）。 GET /api/posts?page=0&size=20 ポストを新しい順で返す。クエリパラメータで取得範囲を指定する。
+     *
+     * @param page 0 始まりのページ番号（デフォルト: 0）
+     * @param size 1 ページあたりの件数（デフォルト: 20）
+     * @return 200 OK + PostResponse のリスト
+     */
+    @GetMapping
+    public ResponseEntity<List<PostResponse>> getTimeline(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(postService.getPage(page, size));
+    }
+
+    /**
+     * 新着件数確認エンドポイント（ポーリング用）。 GET /api/posts/new-count?since=2024-01-01T00:00:00 フロントエンドが 30
+     * 秒ごとに呼び出して新着投稿の有無を確認する。
+     *
+     * @param since この日時より後に作成された投稿件数を返す（ISO_LOCAL_DATE_TIME 形式）
+     * @return 200 OK + { "count": N }
+     */
+    @GetMapping("/new-count")
+    public ResponseEntity<Map<String, Long>> getNewCount(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime since) {
+        long count = postService.countNewerThan(since);
+        return ResponseEntity.ok(Map.of("count", count));
+    }
+
+    /**
+     * ポスト作成エンドポイント。 POST /api/posts JWT から取得したメールアドレスで投稿者を特定し、ポストを作成する。
+     *
+     * @param request 投稿内容を含むリクエスト DTO（@Valid でバリデーション実行）
+     * @return 201 Created + 作成した PostResponse
+     */
+    @PostMapping
+    public ResponseEntity<PostResponse> createPost(@Valid @RequestBody CreatePostRequest request) {
+        // JwtAuthFilter が SecurityContextHolder にセットしたメールアドレスを取得する
+        String email =
+                (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        PostResponse response = postService.createPost(request, email);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * ポスト編集エンドポイント。 PUT /api/posts/{id} 投稿者本人のみ編集できる。他ユーザーが試みた場合は 403 を返す。
+     *
+     * @param id パスパラメータ（編集するポストの ID）
+     * @param request 更新内容を含むリクエスト DTO（@Valid でバリデーション実行）
+     * @return 200 OK + 更新後の PostResponse
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<PostResponse> updatePost(
+            @PathVariable Long id, @Valid @RequestBody UpdatePostRequest request) {
+        String email =
+                (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        PostResponse response = postService.updatePost(id, request, email);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * ポスト削除エンドポイント。 DELETE /api/posts/{id} 投稿者本人のみ削除できる。他ユーザーが試みた場合は 403 を返す。
+     *
+     * @param id パスパラメータ（削除するポストの ID）
+     * @return 204 No Content
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePost(@PathVariable Long id) {
+        String email =
+                (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        postService.deletePost(id, email);
+        return ResponseEntity.noContent().build();
+    }
+}
