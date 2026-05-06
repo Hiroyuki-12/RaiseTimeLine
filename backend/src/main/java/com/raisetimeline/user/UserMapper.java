@@ -44,8 +44,7 @@ public interface UserMapper {
     boolean existsByUsername(String username);
 
     /**
-     * ユーザー ID でユーザーを1件検索する。
-     * リフレッシュトークンからユーザーを特定するために使う。
+     * ユーザー ID でユーザーを1件検索する。 リフレッシュトークンからユーザーを特定するために使う。
      *
      * @param id 検索するユーザー ID（users.id）
      * @return 見つかった場合は Optional<User>、見つからなければ Optional.empty()

@@ -5,6 +5,7 @@ import com.raisetimeline.auth.dto.LoginRequest;
 import com.raisetimeline.auth.dto.RegisterRequest;
 import com.raisetimeline.user.User;
 import com.raisetimeline.user.UserMapper;
+import java.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,11 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
-
 /**
- * ユーザー登録・ログイン・リフレッシュ・ログアウトのビジネスロジックを担当するサービスクラス。
- * @Service アノテーションにより Spring が管理する Bean として登録される。
+ * ユーザー登録・ログイン・リフレッシュ・ログアウトのビジネスロジックを担当するサービスクラス。 @Service アノテーションにより Spring が管理する Bean として登録される。
  * コントローラーからこのクラスを呼び出すことで、HTTP の詳細とビジネスロジックを分離できる。
  */
 @Service
@@ -50,15 +48,10 @@ public class AuthService {
     }
 
     /**
-     * ユーザー登録を行い、アクセストークンを返す。
-     * リフレッシュトークンは呼び出し元（AuthController）が Cookie にセットする。
+     * ユーザー登録を行い、アクセストークンを返す。 リフレッシュトークンは呼び出し元（AuthController）が Cookie にセットする。
      *
-     * <p>処理の流れ:
-     * 1. パスワードと確認用パスワードが一致するか確認
-     * 2. メールアドレス・ユーザー名の重複チェック
-     * 3. パスワードを BCrypt でハッシュ化して DB に保存
-     * 4. アクセストークンと リフレッシュトークンを生成
-     * 5. リフレッシュトークンを DB に保存
+     * <p>処理の流れ: 1. パスワードと確認用パスワードが一致するか確認 2. メールアドレス・ユーザー名の重複チェック 3. パスワードを BCrypt でハッシュ化して DB に保存
+     * 4. アクセストークンと リフレッシュトークンを生成 5. リフレッシュトークンを DB に保存
      *
      * @param req フロントエンドから送られてきた登録情報
      * @return 認証レスポンス（アクセストークン・ユーザーID・ユーザー名）
@@ -97,14 +90,14 @@ public class AuthService {
         String refreshToken = createAndSaveRefreshToken(user.getId());
 
         log.info("ユーザー登録完了: userId={}, username={}", user.getId(), user.getUsername());
-        return new AuthResult(new AuthResponse(accessToken, user.getId(), user.getUsername()), refreshToken);
+        return new AuthResult(
+                new AuthResponse(accessToken, user.getId(), user.getUsername()), refreshToken);
     }
 
     /**
      * ログインを行い、アクセストークンとリフレッシュトークンを返す。
      *
-     * <p>セキュリティ上の注意: 「メールアドレスが存在しない」と「パスワードが違う」でエラーメッセージを分けると、
-     * 攻撃者にメールアドレスの存在有無を知らせることになる（列挙攻撃）。
+     * <p>セキュリティ上の注意: 「メールアドレスが存在しない」と「パスワードが違う」でエラーメッセージを分けると、 攻撃者にメールアドレスの存在有無を知らせることになる（列挙攻撃）。
      * そのため、どちらの場合も同じエラーメッセージを返す。
      *
      * @param req ログイン情報（メールアドレス・パスワード）
@@ -113,10 +106,14 @@ public class AuthService {
     @Transactional
     public AuthResult login(LoginRequest req) {
         // メールアドレスでユーザーを検索する
-        User user = userMapper
-                .findByEmail(req.email())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED, "メールアドレスまたはパスワードが正しくありません"));
+        User user =
+                userMapper
+                        .findByEmail(req.email())
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.UNAUTHORIZED,
+                                                "メールアドレスまたはパスワードが正しくありません"));
 
         /*
          * passwordEncoder.matches(rawPassword, encodedPassword) で照合する。
@@ -132,18 +129,15 @@ public class AuthService {
         String refreshToken = createAndSaveRefreshToken(user.getId());
 
         log.info("ログイン成功: userId={}, username={}", user.getId(), user.getUsername());
-        return new AuthResult(new AuthResponse(accessToken, user.getId(), user.getUsername()), refreshToken);
+        return new AuthResult(
+                new AuthResponse(accessToken, user.getId(), user.getUsername()), refreshToken);
     }
 
     /**
-     * リフレッシュトークンを使ってアクセストークンを再発行する。
-     * アクセストークン（15分）が期限切れになったとき、ページ遷移のたびにログインを求めないために使う。
+     * リフレッシュトークンを使ってアクセストークンを再発行する。 アクセストークン（15分）が期限切れになったとき、ページ遷移のたびにログインを求めないために使う。
      *
-     * <p>処理の流れ:
-     * 1. Cookie に含まれるリフレッシュトークンを DB で検索
-     * 2. 存在しない or 期限切れなら 401 を返す
-     * 3. 有効なら新しいアクセストークンを発行する
-     * 4. リフレッシュトークンをローテーション（古いトークンを削除して新しいものに差し替え）
+     * <p>処理の流れ: 1. Cookie に含まれるリフレッシュトークンを DB で検索 2. 存在しない or 期限切れなら 401 を返す 3.
+     * 有効なら新しいアクセストークンを発行する 4. リフレッシュトークンをローテーション（古いトークンを削除して新しいものに差し替え）
      *
      * @param rawRefreshToken Cookie から取り出したリフレッシュトークン文字列
      * @return 新しいアクセストークンを含む AuthResult
@@ -151,9 +145,13 @@ public class AuthService {
     @Transactional
     public AuthResult refresh(String rawRefreshToken) {
         // DB でリフレッシュトークンを検索する
-        RefreshToken stored = refreshTokenMapper.findByToken(rawRefreshToken)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED, "リフレッシュトークンが無効です"));
+        RefreshToken stored =
+                refreshTokenMapper
+                        .findByToken(rawRefreshToken)
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.UNAUTHORIZED, "リフレッシュトークンが無効です"));
 
         // 有効期限が切れていないか確認する
         if (stored.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -163,8 +161,13 @@ public class AuthService {
         }
 
         // リフレッシュトークンに紐づく userId でユーザーを取得して新しいアクセストークンを発行する
-        User user = userMapper.findById(stored.getUserId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "ユーザーが見つかりません"));
+        User user =
+                userMapper
+                        .findById(stored.getUserId())
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.UNAUTHORIZED, "ユーザーが見つかりません"));
 
         String accessToken = jwtUtil.generateToken(user.getEmail());
 
@@ -172,12 +175,12 @@ public class AuthService {
         refreshTokenMapper.deleteByToken(rawRefreshToken);
         String newRefreshToken = createAndSaveRefreshToken(user.getId());
 
-        return new AuthResult(new AuthResponse(accessToken, user.getId(), user.getUsername()), newRefreshToken);
+        return new AuthResult(
+                new AuthResponse(accessToken, user.getId(), user.getUsername()), newRefreshToken);
     }
 
     /**
-     * ログアウト処理: リフレッシュトークンを DB から削除する。
-     * Cookie のクリアはコントローラー（AuthController）で行う。
+     * ログアウト処理: リフレッシュトークンを DB から削除する。 Cookie のクリアはコントローラー（AuthController）で行う。
      *
      * @param rawRefreshToken Cookie から取り出したリフレッシュトークン文字列
      */
@@ -190,8 +193,7 @@ public class AuthService {
     }
 
     /**
-     * リフレッシュトークンを生成して DB に保存する内部メソッド。
-     * ログイン・登録・リフレッシュローテーション時に共通で使う。
+     * リフレッシュトークンを生成して DB に保存する内部メソッド。 ログイン・登録・リフレッシュローテーション時に共通で使う。
      *
      * @param userId トークンを紐付けるユーザーの ID
      * @return 生成したリフレッシュトークン文字列
@@ -208,8 +210,7 @@ public class AuthService {
     }
 
     /**
-     * register() と login() の戻り値をまとめる内部 record。
-     * AuthResponse（レスポンスボディ用）とリフレッシュトークン（Cookie 用）の両方を持つ。
+     * register() と login() の戻り値をまとめる内部 record。 AuthResponse（レスポンスボディ用）とリフレッシュトークン（Cookie 用）の両方を持つ。
      */
     public record AuthResult(AuthResponse response, String refreshToken) {}
 }
