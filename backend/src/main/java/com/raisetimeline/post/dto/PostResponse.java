@@ -12,6 +12,9 @@ import java.time.LocalDateTime;
  * @param authorDisplayName 投稿者の表示名
  * @param createdAt 投稿日時
  * @param updatedAt 最終更新日時
+ * @param likeCount いいね数（likes テーブルの COUNT を SQL で集計して取得）
+ * @param commentCount コメント数（comments テーブルの COUNT を SQL で集計して取得）
+ * @param liked 現在ログイン中のユーザーがいいね済みかどうか（EXISTS サブクエリで判定）
  */
 public record PostResponse(
         Long id,
@@ -20,4 +23,7 @@ public record PostResponse(
         String authorUsername,
         String authorDisplayName,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt) {}
+        LocalDateTime updatedAt,
+        long likeCount,
+        long commentCount,
+        boolean liked) {}

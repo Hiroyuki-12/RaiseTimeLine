@@ -47,7 +47,23 @@ public class PostController {
     public ResponseEntity<List<PostResponse>> getTimeline(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(postService.getPage(page, size));
+        // liked フラグの判定に現在ユーザーのメールアドレスが必要なため SecurityContextHolder から取得する
+        String email =
+                (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(postService.getPage(page, size, email));
+    }
+
+    /**
+     * 投稿詳細取得エンドポイント。 GET /api/posts/{id} いいね数・コメント数・liked フラグを含む PostResponse を返す。
+     *
+     * @param id パスパラメータ（取得するポストの ID）
+     * @return 200 OK + PostResponse
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<PostResponse> getPost(@PathVariable Long id) {
+        String email =
+                (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(postService.getById(id, email));
     }
 
     /**

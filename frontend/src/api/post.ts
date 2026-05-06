@@ -14,6 +14,9 @@ export interface Post {
   authorDisplayName: string
   createdAt: string // ISO 8601 形式の文字列（例: "2024-01-15T12:34:56"）
   updatedAt: string
+  likeCount: number // いいね数（SQL 集計サブクエリで取得。投稿件数に関係なく1クエリで済む）
+  commentCount: number // コメント数（同上）
+  liked: boolean // 現在ログイン中のユーザーがこの投稿をいいね済みかどうか
 }
 
 /**
@@ -76,4 +79,38 @@ export const updatePost = async (id: number, content: string): Promise<Post> => 
  */
 export const deletePost = async (id: number): Promise<void> => {
   await apiClient.delete(`/posts/${id}`)
+}
+
+/**
+ * 投稿1件取得 API（投稿詳細画面用）。
+ * GET /api/posts/{id}
+ * いいね数・コメント数・liked フラグを含む PostResponse を返す。
+ *
+ * @param id 取得する投稿の ID
+ */
+export const fetchPost = async (id: number): Promise<Post> => {
+  const res = await apiClient.get<Post>(`/posts/${id}`)
+  return res.data
+}
+
+/**
+ * いいね追加 API。
+ * POST /api/likes
+ * 既にいいね済みの場合はバックエンドが 409 を返す。
+ *
+ * @param postId いいね対象の投稿 ID
+ */
+export const addLike = async (postId: number): Promise<void> => {
+  await apiClient.post('/likes', { postId })
+}
+
+/**
+ * いいね削除 API。
+ * DELETE /api/likes/{postId}
+ * いいねが存在しない場合はバックエンドが 404 を返す。
+ *
+ * @param postId いいねを取り消す投稿 ID
+ */
+export const removeLike = async (postId: number): Promise<void> => {
+  await apiClient.delete(`/likes/${postId}`)
 }

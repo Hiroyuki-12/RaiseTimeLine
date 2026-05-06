@@ -1,15 +1,17 @@
 /**
  * タイムライン上の1件のポストを表示するカードコンポーネント。
- * mock のデザインに合わせて:
  * - カラーアバター（イニシャル丸）
  * - 相対時間（3分前 など）
- * - ♥ いいね数・💬 コメント数（現時点は 0 固定。今後の機能追加で更新する）
+ * - ❤️/🤍 いいねボタン（楽観的更新。API 失敗時はロールバック）
+ * - 💬 コメント数（クリックで投稿詳細ページへ遷移）
  * - 投稿者本人のみ編集(✏)・削除(🗑)アイコンを表示
  */
 
 import { useState } from 'react'
-import { type Post, updatePost, deletePost } from '../api/post'
+import { useNavigate } from 'react-router-dom'
+import { type Post, updatePost, deletePost, addLike, removeLike } from '../api/post'
 import { Avatar } from './Sidebar'
+import ConfirmModal from './ConfirmModal'
 
 interface Props {
   post: Post
@@ -19,11 +21,15 @@ interface Props {
   onDeleted: (postId: number) => void
   /** 編集成功時に親コンポーネントへ通知するコールバック */
   onUpdated: (post: Post) => void
+  /**
+   * いいね切り替え後に親コンポーネントへ通知するコールバック。
+   * 親の posts 配列を更新することで、他のアクション後もいいね状態が正しく保たれる。
+   */
+  onLikeToggled: (postId: number, liked: boolean, likeCount: number) => void
 }
 
 /**
  * 日時文字列を相対時間（3分前、1時間前 など）に変換するヘルパー。
- * mock の relativeTime 関数と同様のロジック。
  */
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -37,11 +43,25 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString('ja-JP')
 }
 
-export default function PostCard({ post, currentUserId, onDeleted, onUpdated }: Props) {
+export default function PostCard({
+  post,
+  currentUserId,
+  onDeleted,
+  onUpdated,
+  onLikeToggled,
+}: Props) {
+  const navigate = useNavigate()
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(post.content)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // いいね状態はローカル state で管理し、楽観的更新（API 完了前に UI を先に変更）する
+  const [localLiked, setLocalLiked] = useState(post.liked)
+  const [localLikeCount, setLocalLikeCount] = useState(post.likeCount)
+  const [isLiking, setIsLiking] = useState(false)
+  // 投稿削除確認モーダルの表示状態
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
 
   // 投稿者本人かどうかを判定する
   const isOwner = post.authorId === currentUserId
@@ -61,8 +81,8 @@ export default function PostCard({ post, currentUserId, onDeleted, onUpdated }: 
     }
   }
 
-  const handleDelete = async () => {
-    if (!window.confirm('このポストを削除しますか？')) return
+  const handleDeleteConfirmed = async () => {
+    setIsConfirmOpen(false)
     setIsSubmitting(true)
     try {
       await deletePost(post.id)
@@ -70,6 +90,36 @@ export default function PostCard({ post, currentUserId, onDeleted, onUpdated }: 
     } catch {
       setError('削除に失敗しました')
       setIsSubmitting(false)
+    }
+  }
+
+  /**
+   * いいねトグル処理。
+   * 楽観的更新: API 呼び出し前に UI を先に変更し、失敗したら元に戻す。
+   * これにより、ネットワーク遅延があってもユーザーには即座にフィードバックが返る。
+   */
+  const handleLikeToggle = async () => {
+    if (isLiking) return
+    const nextLiked = !localLiked
+    const nextCount = localLikeCount + (nextLiked ? 1 : -1)
+    // 楽観的更新: 先に UI を変更する
+    setLocalLiked(nextLiked)
+    setLocalLikeCount(nextCount)
+    setIsLiking(true)
+    try {
+      if (nextLiked) {
+        await addLike(post.id)
+      } else {
+        await removeLike(post.id)
+      }
+      // 親コンポーネントの posts 配列も更新して状態を同期する
+      onLikeToggled(post.id, nextLiked, nextCount)
+    } catch {
+      // API 失敗時はロールバック（元の状態に戻す）
+      setLocalLiked(localLiked)
+      setLocalLikeCount(localLikeCount)
+    } finally {
+      setIsLiking(false)
     }
   }
 
@@ -104,7 +154,7 @@ export default function PostCard({ post, currentUserId, onDeleted, onUpdated }: 
               <button
                 style={styles.iconButton}
                 title="削除"
-                onClick={handleDelete}
+                onClick={() => setIsConfirmOpen(true)}
                 disabled={isSubmitting}
               >
                 🗑️
@@ -149,22 +199,48 @@ export default function PostCard({ post, currentUserId, onDeleted, onUpdated }: 
           <p style={styles.content}>{post.content}</p>
         )}
 
-        {/* フッター: ♥ いいね数・💬 コメント数（現時点は 0 固定） */}
+        {/* フッター: いいねボタン・コメント数 */}
         {!isEditing && (
           <div style={styles.footer}>
-            <span style={styles.reaction}>
-              <span style={styles.reactionIcon}>🤍</span>
-              <span style={styles.reactionCount}>0</span>
-            </span>
-            <span style={styles.reaction}>
+            {/* いいねボタン: 楽観的更新で即座に UI に反映する */}
+            <button
+              style={{
+                ...styles.reactionButton,
+                color: localLiked ? '#f4212e' : '#536471',
+              }}
+              onClick={handleLikeToggle}
+              disabled={isLiking}
+              aria-label={localLiked ? 'いいねを取り消す' : 'いいね'}
+              title={localLiked ? 'いいねを取り消す' : 'いいね'}
+            >
+              <span style={styles.reactionIcon}>{localLiked ? '❤️' : '🤍'}</span>
+              <span style={styles.reactionCount}>{localLikeCount}</span>
+            </button>
+
+            {/* コメント数: クリックで投稿詳細ページへ遷移する */}
+            <button
+              style={{ ...styles.reactionButton, color: '#536471' }}
+              onClick={() => navigate(`/posts/${post.id}`)}
+              aria-label="コメントを見る"
+              title="コメントを見る"
+            >
               <span style={styles.reactionIcon}>💬</span>
-              <span style={styles.reactionCount}>0</span>
-            </span>
+              <span style={styles.reactionCount}>{post.commentCount}</span>
+            </button>
           </div>
         )}
 
         {error && !isEditing && <p style={styles.error}>{error}</p>}
       </div>
+
+      {/* 投稿削除確認モーダル */}
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        message="このポストを削除しますか？"
+        confirmLabel="削除する"
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </div>
   )
 }
@@ -223,18 +299,23 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 24,
     marginTop: 8,
   },
-  reaction: {
+  // いいね・コメントボタン共通スタイル（背景なし、ボーダーなし）
+  reactionButton: {
     display: 'flex',
     alignItems: 'center',
     gap: 4,
-    cursor: 'default',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '2px 4px',
+    borderRadius: 4,
+    lineHeight: 1,
   },
   reactionIcon: {
     fontSize: 16,
   },
   reactionCount: {
     fontSize: 13,
-    color: '#536471',
   },
   actions: {
     display: 'flex',

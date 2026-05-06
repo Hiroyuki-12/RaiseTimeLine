@@ -19,10 +19,61 @@
     </insert>
 
     <!--
+        insertAndReturn: INSERT ... RETURNING で1クエリで挿入＆全フィールド取得。
+        insert + findById の2クエリを1クエリに削減（N+1 修正）。
+        新規投稿時は likes/comments が0件なので likeCount=0, commentCount=0, liked=false を直接返す。
+        MyBatis では INSERT...RETURNING も <select> タグで扱うことで ResultSet を受け取れる。
+    -->
+    <select id="insertAndReturn" resultType="com.raisetimeline.post.dto.PostResponse">
+        INSERT INTO posts (user_id, content, created_at, updated_at)
+        VALUES (#{userId}, #{content}, NOW(), NOW())
+        RETURNING
+            id,
+            content,
+            (SELECT id           FROM users WHERE id = #{userId}) AS authorId,
+            (SELECT username     FROM users WHERE id = #{userId}) AS authorUsername,
+            (SELECT display_name FROM users WHERE id = #{userId}) AS authorDisplayName,
+            created_at  AS createdAt,
+            updated_at  AS updatedAt,
+            0           AS likeCount,
+            0           AS commentCount,
+            false       AS liked
+    </select>
+
+    <!--
+        updateAndReturn: UPDATE ... RETURNING で1クエリで更新＆全フィールド取得。
+        update + findById の2クエリを1クエリに削減（N+1 修正）。
+        更新後も likes/comments の最新件数・liked フラグを集計サブクエリで取得する。
+    -->
+    <select id="updateAndReturn" resultType="com.raisetimeline.post.dto.PostResponse">
+        UPDATE posts
+        SET content    = #{content},
+            updated_at = NOW()
+        WHERE id = #{id}
+        RETURNING
+            id,
+            content,
+            (SELECT id           FROM users u WHERE u.id = user_id) AS authorId,
+            (SELECT username     FROM users u WHERE u.id = user_id) AS authorUsername,
+            (SELECT display_name FROM users u WHERE u.id = user_id) AS authorDisplayName,
+            created_at AS createdAt,
+            updated_at AS updatedAt,
+            (SELECT COUNT(*) FROM likes    l WHERE l.post_id = id)   AS likeCount,
+            (SELECT COUNT(*) FROM comments c WHERE c.post_id = id)   AS commentCount,
+            (SELECT EXISTS(
+                SELECT 1 FROM likes lx
+                JOIN users cu ON cu.id = lx.user_id
+                WHERE lx.post_id = id AND cu.email = #{currentUserEmail}
+            ))                                                        AS liked
+    </select>
+
+    <!--
         findPageOrderByCreatedAtDesc: ポストをページネーション付きで新しい順に取得する（タイムライン）。
-        posts と users を JOIN して投稿者の displayName・username を合わせて返す。
-        列エイリアスを PostResponse の Record コンポーネント名（camelCase）に合わせることで
-        MyBatis が自動マッピングする。
+        posts と users を JOIN して投稿者の displayName・username を取得する。
+        さらに集計サブクエリで1SQLラウンドトリップのまま以下を取得する（N+1 防止）:
+          - likeCount   : likes テーブルの COUNT サブクエリ（idx_likes_post_id を使用）
+          - commentCount: comments テーブルの COUNT サブクエリ（idx_comments_post_id を使用）
+          - liked       : 現在ユーザーのいいね有無を EXISTS サブクエリで判定
     -->
     <select id="findPageOrderByCreatedAtDesc"
             resultType="com.raisetimeline.post.dto.PostResponse">
@@ -33,7 +84,14 @@
             u.username      AS authorUsername,
             u.display_name  AS authorDisplayName,
             p.created_at    AS createdAt,
-            p.updated_at    AS updatedAt
+            p.updated_at    AS updatedAt,
+            (SELECT COUNT(*) FROM likes    l WHERE l.post_id = p.id)  AS likeCount,
+            (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)  AS commentCount,
+            (SELECT EXISTS(
+                SELECT 1 FROM likes lx
+                JOIN users cu ON cu.id = lx.user_id
+                WHERE lx.post_id = p.id AND cu.email = #{currentUserEmail}
+            ))                                                          AS liked
         FROM posts p
         INNER JOIN users u ON p.user_id = u.id
         ORDER BY p.created_at DESC
@@ -51,8 +109,33 @@
     </select>
 
     <!--
+        findByIdAsResponse: ID でポストを1件検索し、いいね数・コメント数・liked フラグ付きで返す。
+        投稿詳細画面（GET /api/posts/{id}）で使う。タイムラインと同じ集計サブクエリで N+1 なし。
+    -->
+    <select id="findByIdAsResponse" resultType="com.raisetimeline.post.dto.PostResponse">
+        SELECT
+            p.id            AS id,
+            p.content       AS content,
+            u.id            AS authorId,
+            u.username      AS authorUsername,
+            u.display_name  AS authorDisplayName,
+            p.created_at    AS createdAt,
+            p.updated_at    AS updatedAt,
+            (SELECT COUNT(*) FROM likes    l WHERE l.post_id = p.id)  AS likeCount,
+            (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)  AS commentCount,
+            (SELECT EXISTS(
+                SELECT 1 FROM likes lx
+                JOIN users cu ON cu.id = lx.user_id
+                WHERE lx.post_id = p.id AND cu.email = #{currentUserEmail}
+            ))                                                          AS liked
+        FROM posts p
+        INNER JOIN users u ON p.user_id = u.id
+        WHERE p.id = #{id}
+    </select>
+
+    <!--
         findById: ID でポストを1件検索する。
-        INSERT 後に DB が生成したタイムスタンプを取得する目的でも使う。
+        編集・削除前のオーナーチェック（user_id の確認）のために使う。
     -->
     <select id="findById" resultType="com.raisetimeline.post.Post">
         SELECT id, user_id, content, created_at, updated_at
@@ -61,8 +144,7 @@
     </select>
 
     <!--
-        update: content と updated_at を更新する。
-        id で対象行を特定し、updated_at は NOW() で現在時刻に更新する。
+        update: content と updated_at を更新する（updateAndReturn に置き換え済みだが互換のため残す）。
     -->
     <update id="update">
         UPDATE posts

@@ -36,14 +36,33 @@ public class PostService {
     /**
      * ポストをページネーション付きで新しい順に取得する（タイムライン）。 認証済みユーザーなら誰でも閲覧できる。
      *
+     * <p>N+1 対策: findPageOrderByCreatedAtDesc は1SQLで likes/comments の COUNT と liked フラグを
+     * 集計サブクエリで取得するため、投稿件数に比例したクエリ発行は起きない。
+     *
      * @param page 0 始まりのページ番号
      * @param size 1 ページあたりの件数
+     * @param currentUserEmail 現在のユーザーのメールアドレス（liked 判定に使う）
      * @return PostResponse のリスト（created_at 降順）
      */
     @Transactional(readOnly = true)
-    public List<PostResponse> getPage(int page, int size) {
+    public List<PostResponse> getPage(int page, int size, String currentUserEmail) {
         int offset = page * size;
-        return postMapper.findPageOrderByCreatedAtDesc(offset, size);
+        return postMapper.findPageOrderByCreatedAtDesc(offset, size, currentUserEmail);
+    }
+
+    /**
+     * ID でポストを1件取得する（投稿詳細画面用）。 いいね数・コメント数・liked フラグを集計サブクエリで取得するため N+1 は発生しない。
+     *
+     * @param id 取得するポスト ID
+     * @param currentUserEmail 現在のユーザーのメールアドレス（liked 判定に使う）
+     * @return PostResponse
+     */
+    @Transactional(readOnly = true)
+    public PostResponse getById(Long id, String currentUserEmail) {
+        return postMapper
+                .findByIdAsResponse(id, currentUserEmail)
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ポストが見つかりません"));
     }
 
     /**
@@ -60,6 +79,9 @@ public class PostService {
     /**
      * 新しいポストを作成する。 SecurityContextHolder から取得したメールアドレスでユーザーを特定し、 userId を posts テーブルに保存する。
      *
+     * <p>N+1 修正: insertAndReturn を使い INSERT ... RETURNING で1クエリにまとめることで、 従来の insert + findById
+     * の2クエリを1クエリに削減した。
+     *
      * @param req 投稿内容（content）を含むリクエスト DTO
      * @param email JwtAuthFilter が SecurityContextHolder にセットしたメールアドレス
      * @return 作成した PostResponse（DB 生成のタイムスタンプ含む）
@@ -75,26 +97,18 @@ public class PostService {
                                         new ResponseStatusException(
                                                 HttpStatus.UNAUTHORIZED, "ユーザーが見つかりません"));
 
-        Post post = new Post();
-        post.setUserId(user.getId());
-        post.setContent(req.content());
-        postMapper.insert(post);
+        // INSERT ... RETURNING で挿入と同時に PostResponse を取得する（N+1 修正）
+        PostResponse saved = postMapper.insertAndReturn(user.getId(), req.content(), email);
 
-        // INSERT 後に DB が生成したタイムスタンプ（NOW()）を取得するために再検索する
-        Post saved =
-                postMapper
-                        .findById(post.getId())
-                        .orElseThrow(
-                                () ->
-                                        new ResponseStatusException(
-                                                HttpStatus.INTERNAL_SERVER_ERROR, "投稿の取得に失敗しました"));
-
-        log.info("ポスト作成: postId={}, userId={}", saved.getId(), user.getId());
-        return toPostResponse(saved, user);
+        log.info("ポスト作成: postId={}, userId={}", saved.id(), user.getId());
+        return saved;
     }
 
     /**
      * ポストを編集する。投稿者本人のみ実行できる。
+     *
+     * <p>N+1 修正: updateAndReturn を使い UPDATE ... RETURNING で1クエリにまとめることで、 従来の update + findById
+     * の2クエリを1クエリに削減した。
      *
      * @param id 編集するポストの ID
      * @param req 更新内容（content）を含むリクエスト DTO
@@ -112,7 +126,7 @@ public class PostService {
                                         new ResponseStatusException(
                                                 HttpStatus.UNAUTHORIZED, "ユーザーが見つかりません"));
 
-        // 対象ポストの存在確認
+        // 対象ポストの存在確認・投稿者本人チェック（削除前に user_id を確認する必要があるため findById は必須）
         Post post =
                 postMapper
                         .findById(id)
@@ -126,20 +140,11 @@ public class PostService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "このポストを編集する権限がありません");
         }
 
-        post.setContent(req.content());
-        postMapper.update(post);
+        // UPDATE ... RETURNING で更新と同時に PostResponse を取得する（N+1 修正）
+        PostResponse updated = postMapper.updateAndReturn(id, req.content(), email);
 
-        // UPDATE 後に DB のタイムスタンプを取得するために再検索する
-        Post updated =
-                postMapper
-                        .findById(id)
-                        .orElseThrow(
-                                () ->
-                                        new ResponseStatusException(
-                                                HttpStatus.INTERNAL_SERVER_ERROR, "投稿の取得に失敗しました"));
-
-        log.info("ポスト更新: postId={}, userId={}", updated.getId(), user.getId());
-        return toPostResponse(updated, user);
+        log.info("ポスト更新: postId={}, userId={}", id, user.getId());
+        return updated;
     }
 
     /**
@@ -159,7 +164,7 @@ public class PostService {
                                         new ResponseStatusException(
                                                 HttpStatus.UNAUTHORIZED, "ユーザーが見つかりません"));
 
-        // 対象ポストの存在確認
+        // 対象ポストの存在確認・投稿者本人チェック
         Post post =
                 postMapper
                         .findById(id)
@@ -175,23 +180,5 @@ public class PostService {
 
         postMapper.deleteById(id);
         log.info("ポスト削除: postId={}, userId={}", id, user.getId());
-    }
-
-    /**
-     * Post エンティティと User から PostResponse を組み立てる内部メソッド。 createPost・updatePost の戻り値を統一するために使う。
-     *
-     * @param post 保存済みポスト（id・content・createdAt・updatedAt が確定済み）
-     * @param user 投稿者
-     * @return PostResponse
-     */
-    private PostResponse toPostResponse(Post post, User user) {
-        return new PostResponse(
-                post.getId(),
-                post.getContent(),
-                user.getId(),
-                user.getUsername(),
-                user.getDisplayName(),
-                post.getCreatedAt(),
-                post.getUpdatedAt());
     }
 }

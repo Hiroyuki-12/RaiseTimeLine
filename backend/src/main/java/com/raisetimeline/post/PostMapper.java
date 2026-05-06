@@ -23,14 +23,46 @@ public interface PostMapper {
     void insert(Post post);
 
     /**
-     * ポストをページネーション付きで投稿日時の降順で取得する（タイムライン用）。 users テーブルと JOIN して投稿者の displayName・username も取得する。
+     * INSERT ... RETURNING を使って投稿を1件挿入し、DB 生成タイムスタンプを含む PostResponse を返す。 insert + findById
+     * の2クエリを1クエリに削減（N+1 修正）。
+     *
+     * @param userId 投稿者の ID
+     * @param content 投稿本文
+     * @param currentUserEmail 現在のユーザーのメールアドレス（liked 判定に使う）
+     * @return 挿入後の PostResponse（id・タイムスタンプ含む）
+     */
+    PostResponse insertAndReturn(
+            @Param("userId") Long userId,
+            @Param("content") String content,
+            @Param("currentUserEmail") String currentUserEmail);
+
+    /**
+     * UPDATE ... RETURNING を使って投稿を更新し、更新後の PostResponse を返す。 update + findById の2クエリを1クエリに削減（N+1
+     * 修正）。
+     *
+     * @param id 更新対象の投稿 ID
+     * @param content 新しい本文
+     * @param currentUserEmail 現在のユーザーのメールアドレス（liked 判定に使う）
+     * @return 更新後の PostResponse
+     */
+    PostResponse updateAndReturn(
+            @Param("id") Long id,
+            @Param("content") String content,
+            @Param("currentUserEmail") String currentUserEmail);
+
+    /**
+     * ポストをページネーション付きで投稿日時の降順で取得する（タイムライン用）。 users テーブルと JOIN し、さらに likes/comments の COUNT サブクエリで
+     * N+1 なしに いいね数・コメント数・liked フラグを取得する。
      *
      * @param offset 取得開始位置（0 始まり）
      * @param limit 取得件数
+     * @param currentUserEmail 現在のユーザーのメールアドレス（liked 判定に使う）
      * @return PostResponse のリスト（新しい順）
      */
     List<PostResponse> findPageOrderByCreatedAtDesc(
-            @Param("offset") int offset, @Param("limit") int limit);
+            @Param("offset") int offset,
+            @Param("limit") int limit,
+            @Param("currentUserEmail") String currentUserEmail);
 
     /**
      * 指定日時より後に作成された投稿件数を返す（ポーリングによる新着チェック用）。
@@ -41,12 +73,22 @@ public interface PostMapper {
     long countNewerThan(@Param("since") LocalDateTime since);
 
     /**
-     * ID でポストを1件検索する。 編集・削除前のオーナーチェックや、INSERT 後のタイムスタンプ取得に使う。
+     * ID でポストを1件検索する。 編集・削除前のオーナーチェックに使う。
      *
      * @param id 検索するポスト ID
      * @return 見つかった場合 Optional<Post>、見つからなければ Optional.empty()
      */
     Optional<Post> findById(Long id);
+
+    /**
+     * ID でポストを1件検索し、いいね数・コメント数・liked フラグを含む PostResponse を返す。 投稿詳細画面（GET /api/posts/{id}）で使う。
+     *
+     * @param id 検索するポスト ID
+     * @param currentUserEmail 現在のユーザーのメールアドレス（liked 判定に使う）
+     * @return 見つかった場合 Optional<PostResponse>、見つからなければ Optional.empty()
+     */
+    Optional<PostResponse> findByIdAsResponse(
+            @Param("id") Long id, @Param("currentUserEmail") String currentUserEmail);
 
     /**
      * ポストの content と updated_at を更新する。
