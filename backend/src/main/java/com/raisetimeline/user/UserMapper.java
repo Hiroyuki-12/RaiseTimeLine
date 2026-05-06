@@ -42,4 +42,12 @@ public interface UserMapper {
      * @return 存在する場合 true、存在しない場合 false
      */
     boolean existsByUsername(String username);
+
+    /**
+     * ユーザー ID でユーザーを1件検索する。 リフレッシュトークンからユーザーを特定するために使う。
+     *
+     * @param id 検索するユーザー ID（users.id）
+     * @return 見つかった場合は Optional<User>、見つからなければ Optional.empty()
+     */
+    Optional<User> findById(Long id);
 }

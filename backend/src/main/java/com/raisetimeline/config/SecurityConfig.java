@@ -86,7 +86,12 @@ public class SecurityConfig {
                                          * Spring MVC の有無によって変わる場合があるため、
                                          * 認証不要パスは明示的に列挙して確実に permitAll を適用する。
                                          */
-                                        .requestMatchers("/api/auth/register", "/api/auth/login")
+                                        // 登録・ログイン・リフレッシュ・ログアウトは認証不要
+                                        .requestMatchers(
+                                                "/api/auth/register",
+                                                "/api/auth/login",
+                                                "/api/auth/refresh",
+                                                "/api/auth/logout")
                                         .permitAll()
                                         /*
                                          * /error も認証不要にする。

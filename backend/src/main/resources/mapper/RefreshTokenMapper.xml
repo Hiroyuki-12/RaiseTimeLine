@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  refresh_tokens テーブルの SQL を定義する MyBatis マッパー。
+  すべてのパラメータは PreparedStatement でバインドするため SQL インジェクションの心配はない。
+-->
+<mapper namespace="com.raisetimeline.auth.RefreshTokenMapper">
+
+    <!-- リフレッシュトークンを1件挿入する -->
+    <insert id="insert" parameterType="com.raisetimeline.auth.RefreshToken"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO refresh_tokens (user_id, token, expires_at)
+        VALUES (#{userId}, #{token}, #{expiresAt})
+    </insert>
+
+    <!--
+      トークン文字列でレコードを1件検索する。
+      resultType は MyBatis のスネークケース→キャメルケース自動変換が有効なため
+      user_id → userId 等のマッピングは自動で行われる。
+    -->
+    <select id="findByToken" parameterType="String"
+            resultType="com.raisetimeline.auth.RefreshToken">
+        SELECT id, user_id, token, expires_at, created_at
+        FROM refresh_tokens
+        WHERE token = #{token}
+    </select>
+
+    <!-- ログアウト時: 指定トークンを削除する -->
+    <delete id="deleteByToken" parameterType="String">
+        DELETE FROM refresh_tokens WHERE token = #{token}
+    </delete>
+
+    <!-- 全デバイスログアウト: ユーザー ID に紐づく全トークンを削除する -->
+    <delete id="deleteByUserId" parameterType="Long">
+        DELETE FROM refresh_tokens WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

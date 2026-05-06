@@ -16,8 +16,8 @@
         #{フィールド名} は MyBatis のプレースホルダー。PreparedStatement で安全にバインドされる（SQL インジェクション対策）
     -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO users (email, password_hash, username, created_at, updated_at)
-        VALUES (#{email}, #{passwordHash}, #{username}, NOW(), NOW())
+        INSERT INTO users (email, password_hash, username, display_name, created_at, updated_at)
+        VALUES (#{email}, #{passwordHash}, #{username}, #{displayName}, NOW(), NOW())
     </insert>
 
     <!--
@@ -50,6 +50,15 @@
         SELECT EXISTS(
             SELECT 1 FROM users WHERE username = #{username}
         )
+    </select>
+
+    <!--
+        findById: ユーザー ID でユーザーを1件検索する。
+        リフレッシュトークンには userId が記録されているため、
+        アクセストークン再発行時にユーザー情報を取得するために使う。
+    -->
+    <select id="findById" resultType="com.raisetimeline.user.User">
+        SELECT * FROM users WHERE id = #{id}
     </select>
 
 </mapper>

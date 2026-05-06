@@ -16,7 +16,11 @@ import jakarta.validation.constraints.Size;
  */
 public record RegisterRequest(
 
-        /** ユーザー名: 1〜50文字、英数字・アンダースコア・ハイフンのみ使用可。 画面に表示される名前で、重複不可。 */
+        /** 表示名: 1〜50文字。日本語を含む任意の文字列を許可する。 画面上に表示される名前として使う。username とは独立して設定できる。 */
+        @NotBlank(message = "表示名は必須です") @Size(min = 1, max = 50, message = "表示名は1〜50文字で入力してください")
+                String displayName,
+
+        /** ユーザー名: 1〜50文字、英数字・アンダースコア・ハイフンのみ使用可。@handle として使う識別子。重複不可。 */
         @NotBlank(message = "ユーザー名は必須です")
                 @Size(min = 1, max = 50, message = "ユーザー名は1〜50文字で入力してください")
                 @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "ユーザー名は英数字・_・-のみ使用できます")
