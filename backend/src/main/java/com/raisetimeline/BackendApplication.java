@@ -11,8 +11,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 // Mapper インターフェースが置かれているパッケージをすべて列挙する
-// user: UserMapper、auth: RefreshTokenMapper を含む
-@MapperScan({"com.raisetimeline.user", "com.raisetimeline.auth"})
+// user: UserMapper、auth: RefreshTokenMapper、post: PostMapper を含む
+@MapperScan({"com.raisetimeline.user", "com.raisetimeline.auth", "com.raisetimeline.post"})
 public class BackendApplication {
 
     public static void main(String[] args) {
