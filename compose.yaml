@@ -1,0 +1,32 @@
+# ローカル開発環境用 Docker Compose 設定
+# PostgreSQL 16 のみ起動する。バックエンド・フロントエンドはホストで直接起動する。
+
+services:
+  db:
+    # PostgreSQL 16 の軽量 Alpine イメージを使用
+    image: postgres:16-alpine
+    # コンテナ名を明示することで docker stop raisetimeline-db で停止しやすくする
+    container_name: raisetimeline-db
+    environment:
+      POSTGRES_DB: raisetimeline       # 作成するデータベース名
+      POSTGRES_USER: raisetimeline     # 接続ユーザー名
+      POSTGRES_PASSWORD: password      # 接続パスワード（ローカル開発用なので簡易値でOK）
+    ports:
+      # ホストの 5432 ポートをコンテナの 5432 ポートにマッピング
+      # ポートルール: PostgreSQL は必ず 5432 を使用する（別ポートへの変更禁止）
+      - "5432:5432"
+    volumes:
+      # コンテナを再起動してもデータが消えないよう named volume に永続化する
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # DB が接続受け付け可能な状態か確認するコマンド
+      # pg_isready は PostgreSQL 付属のツールで接続確認に使う
+      test: ["CMD-SHELL", "pg_isready -U raisetimeline"]
+      interval: 10s   # 10秒ごとにヘルスチェック実行
+      timeout: 5s     # 5秒応答がなければ失敗扱い
+      retries: 5      # 5回連続失敗でコンテナを unhealthy 状態にする
+
+volumes:
+  # postgres_data: DB データを永続化する named volume
+  # docker compose down だけではデータは消えない（docker compose down -v で削除可能）
+  postgres_data:
