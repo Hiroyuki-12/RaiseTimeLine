@@ -5,7 +5,7 @@
  * 登録成功後はホーム画面（/home）に遷移する。
  */
 
-import { useState, FormEvent } from 'react'
+import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { register } from '../api/auth'
 import { AxiosError } from 'axios'
@@ -17,6 +17,7 @@ interface ValidationErrors {
 
 export default function RegisterPage() {
   const navigate = useNavigate()
+  const [displayName, setDisplayName] = useState('')
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -25,13 +26,13 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({})
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault()
     setErrorMessage('')
     setFieldErrors({})
     setIsLoading(true)
     try {
-      await register({ username, email, password, passwordConfirm })
+      await register({ displayName, username, email, password, passwordConfirm })
       // 登録成功: ホーム画面に遷移する
       navigate('/home')
     } catch (err) {
@@ -57,7 +58,22 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit}>
           <div style={styles.formGroup}>
-            <label style={styles.label} htmlFor="username">ユーザー名</label>
+            <label style={styles.label} htmlFor="displayName">表示名</label>
+            <input
+              id="displayName"
+              type="text"
+              style={styles.input}
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="日本語でも入力できます（1〜50文字）"
+              required
+              autoComplete="name"
+            />
+            {fieldErrors.displayName && <p style={styles.fieldError}>{fieldErrors.displayName}</p>}
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label} htmlFor="username">ユーザー名（@handle）</label>
             <input
               id="username"
               type="text"

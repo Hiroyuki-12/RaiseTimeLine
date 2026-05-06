@@ -77,6 +77,8 @@ public class AuthService {
         User user = new User();
         user.setEmail(req.email());
         user.setUsername(req.username());
+        // 表示名（日本語対応）を設定する
+        user.setDisplayName(req.displayName());
         /*
          * BCrypt でパスワードをハッシュ化して保存する。
          * BCrypt は一方向ハッシュ（元のパスワードに戻せない）なので、
@@ -91,7 +93,9 @@ public class AuthService {
 
         log.info("ユーザー登録完了: userId={}, username={}", user.getId(), user.getUsername());
         return new AuthResult(
-                new AuthResponse(accessToken, user.getId(), user.getUsername()), refreshToken);
+                new AuthResponse(
+                        accessToken, user.getId(), user.getUsername(), user.getDisplayName()),
+                refreshToken);
     }
 
     /**
@@ -130,7 +134,9 @@ public class AuthService {
 
         log.info("ログイン成功: userId={}, username={}", user.getId(), user.getUsername());
         return new AuthResult(
-                new AuthResponse(accessToken, user.getId(), user.getUsername()), refreshToken);
+                new AuthResponse(
+                        accessToken, user.getId(), user.getUsername(), user.getDisplayName()),
+                refreshToken);
     }
 
     /**
@@ -176,7 +182,9 @@ public class AuthService {
         String newRefreshToken = createAndSaveRefreshToken(user.getId());
 
         return new AuthResult(
-                new AuthResponse(accessToken, user.getId(), user.getUsername()), newRefreshToken);
+                new AuthResponse(
+                        accessToken, user.getId(), user.getUsername(), user.getDisplayName()),
+                newRefreshToken);
     }
 
     /**

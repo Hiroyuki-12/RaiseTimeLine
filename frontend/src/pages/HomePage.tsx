@@ -12,20 +12,20 @@ export default function HomePage() {
   const navigate = useNavigate()
   // ロード中はスピナーを表示する（リフレッシュ中のちらつきを防ぐ）
   const [isLoading, setIsLoading] = useState(true)
-  const [username, setUsername] = useState('')
+  const [displayName, setDisplayName] = useState('')
 
   useEffect(() => {
     const initAuth = async () => {
       // まずメモリ内にアクセストークンがあるか確認する
       if (getAccessToken()) {
-        setUsername(getUserInfo()?.username ?? '')
+        setDisplayName(getUserInfo()?.displayName ?? '')
         setIsLoading(false)
         return
       }
       // メモリにない場合（ページリロードなど）はリフレッシュトークンで再発行を試みる
       try {
         const res = await refreshAccessToken()
-        setUsername(res.username)
+        setDisplayName(res.displayName)
       } catch {
         // リフレッシュも失敗した場合はログイン画面へ（セッション切れ）
         navigate('/login')
@@ -62,7 +62,7 @@ export default function HomePage() {
 
         {/* ログイン成功メッセージ */}
         <div style={styles.successBadge}>ログイン成功</div>
-        <h1 style={styles.welcome}>ようこそ、{username} さん！</h1>
+        <h1 style={styles.welcome}>ようこそ、{displayName} さん！</h1>
         <p style={styles.description}>
           認証が完了しました。アクセストークン（15分）とリフレッシュトークン（7日間）が正常に発行されています。
         </p>

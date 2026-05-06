@@ -16,8 +16,8 @@
         #{フィールド名} は MyBatis のプレースホルダー。PreparedStatement で安全にバインドされる（SQL インジェクション対策）
     -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO users (email, password_hash, username, created_at, updated_at)
-        VALUES (#{email}, #{passwordHash}, #{username}, NOW(), NOW())
+        INSERT INTO users (email, password_hash, username, display_name, created_at, updated_at)
+        VALUES (#{email}, #{passwordHash}, #{username}, #{displayName}, NOW(), NOW())
     </insert>
 
     <!--

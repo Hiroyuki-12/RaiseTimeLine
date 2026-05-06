@@ -19,8 +19,14 @@ public class User {
     /** users.password_hash: BCrypt でハッシュ化されたパスワード。 平文のパスワードは絶対にこのフィールドに入れてはいけない。 */
     private String passwordHash;
 
-    /** users.username: 画面に表示されるユーザー名 */
+    /** users.username: @handle として使う識別子（英数字・_・- のみ）。 URL やメンション（@username）に使うため、英数字に限定する。 */
     private String username;
+
+    /**
+     * users.display_name: 画面に表示する名前。日本語を含む任意の文字列を許可する。 username とは別に設定することで「表示名は日本語、handle
+     * は英字」という使い分けができる。
+     */
+    private String displayName;
 
     /** users.avatar_url: プロフィール画像の URL。null 可 */
     private String avatarUrl;
@@ -67,6 +73,14 @@ public class User {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
     }
 
     public String getAvatarUrl() {

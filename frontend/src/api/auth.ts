@@ -19,12 +19,13 @@ export interface AuthResponse {
   accessToken: string
   userId: number
   username: string
+  displayName: string
 }
 
 // アクセストークンをメモリ内に保持する変数（外部からは関数経由でのみアクセスする）
 let _accessToken: string | null = null
 // ユーザー情報もメモリに保持する
-let _userInfo: { userId: number; username: string } | null = null
+let _userInfo: { userId: number; username: string; displayName: string } | null = null
 
 /** 現在保持しているアクセストークンを返す */
 export const getAccessToken = () => _accessToken
@@ -35,7 +36,7 @@ export const getUserInfo = () => _userInfo
 /** アクセストークンとユーザー情報をメモリに保存する内部関数 */
 const storeAuthData = (res: AuthResponse) => {
   _accessToken = res.accessToken
-  _userInfo = { userId: res.userId, username: res.username }
+  _userInfo = { userId: res.userId, username: res.username, displayName: res.displayName }
 }
 
 /** ログアウト時にメモリ上のトークンとユーザー情報をクリアする */
@@ -101,6 +102,7 @@ apiClient.interceptors.response.use(
  * 成功するとアクセストークンがメモリに保存され、リフレッシュトークンが HttpOnly Cookie にセットされる。
  */
 export const register = async (data: {
+  displayName: string
   username: string
   email: string
   password: string

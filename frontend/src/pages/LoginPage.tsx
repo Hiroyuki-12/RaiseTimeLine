@@ -4,7 +4,7 @@
  * ログイン成功後はホーム画面（/home）に遷移する。
  */
 
-import { useState, FormEvent } from 'react'
+import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { login } from '../api/auth'
 import { AxiosError } from 'axios'
@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault()
     setErrorMessage('')
     setIsLoading(true)
