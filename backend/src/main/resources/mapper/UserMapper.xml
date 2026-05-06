@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    UserMapper.xml: UserMapper インターフェースの各メソッドに対応する SQL を定義する。
+    namespace に UserMapper の完全修飾クラス名を指定することで、インターフェースと紐づく。
+    id には UserMapper のメソッド名を指定する。
+-->
+<mapper namespace="com.raisetimeline.user.UserMapper">
+
+    <!--
+        insert: users テーブルに1件 INSERT する。
+        useGeneratedKeys="true" : DB が自動採番した id を取得する
+        keyProperty="id"        : 取得した id を User.id フィールドにセットする
+        #{フィールド名} は MyBatis のプレースホルダー。PreparedStatement で安全にバインドされる（SQL インジェクション対策）
+    -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (email, password_hash, username, created_at, updated_at)
+        VALUES (#{email}, #{passwordHash}, #{username}, NOW(), NOW())
+    </insert>
+
+    <!--
+        findByEmail: メールアドレスでユーザーを1件検索する。
+        resultType に User クラスの完全修飾名を指定することで、SELECT 結果が User オブジェクトに自動マッピングされる。
+        map-underscore-to-camel-case=true の設定により、password_hash → passwordHash のように自動変換される。
+        Optional の場合、結果が0件なら MyBatis が Optional.empty() を返す。
+    -->
+    <select id="findByEmail" resultType="com.raisetimeline.user.User">
+        SELECT *
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <!--
+        existsByEmail: 指定メールアドレスが存在するか確認する。
+        EXISTS(...) は条件に一致する行が1件でもあれば true を返す。
+        COUNT より効率的（1件見つかった時点で検索を止めるため）。
+    -->
+    <select id="existsByEmail" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM users WHERE email = #{email}
+        )
+    </select>
+
+    <!--
+        existsByUsername: 指定ユーザー名が存在するか確認する。
+    -->
+    <select id="existsByUsername" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM users WHERE username = #{username}
+        )
+    </select>
+
+</mapper>
