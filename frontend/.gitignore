@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+# Vite の依存関係キャッシュ（自動生成されるため Git 管理不要）
+.vite
 
 # Editor directories and files
 .vscode/*
