@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    CommentMapper.xml: CommentMapper インターフェースの各メソッドに対応する SQL を定義する。
+-->
+<mapper namespace="com.raisetimeline.comment.CommentMapper">
+
+    <!--
+        insert: comments テーブルに1件 INSERT する。
+        useGeneratedKeys="true" : DB が自動採番した id を取得する
+        keyProperty="id"        : 取得した id を Comment.id フィールドにセットする
+    -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO comments (post_id, user_id, content, created_at)
+        VALUES (#{postId}, #{userId}, #{content}, NOW())
+    </insert>
+
+    <!--
+        findByPostId: 指定投稿のコメント一覧を取得する。
+        comments と users を JOIN して投稿者情報を合わせて取得する（N+1 防止）。
+        idx_comments_post_id インデックスにより post_id の絞り込みが高速に行われる。
+        古いコメントを上に表示するため created_at 昇順で並べる。
+    -->
+    <select id="findByPostId" resultType="com.raisetimeline.comment.dto.CommentResponse">
+        SELECT
+            c.id            AS id,
+            c.post_id       AS postId,
+            c.user_id       AS authorId,
+            u.username      AS authorUsername,
+            u.display_name  AS authorDisplayName,
+            c.content       AS content,
+            c.created_at    AS createdAt
+        FROM comments c
+        INNER JOIN users u ON c.user_id = u.id
+        WHERE c.post_id = #{postId}
+        ORDER BY c.created_at ASC
+    </select>
+
+    <!--
+        findById: ID でコメントを1件検索する。
+        編集・削除前のオーナーチェック（user_id の確認）のために使う。
+    -->
+    <select id="findById" resultType="com.raisetimeline.comment.Comment">
+        SELECT id, post_id, user_id, content, created_at
+        FROM comments
+        WHERE id = #{id}
+    </select>
+
+    <!--
+        update: コメントの content を更新する。
+        comments テーブルには updated_at がないため、更新日時は保存しない（仕様通り）。
+    -->
+    <update id="update">
+        UPDATE comments
+        SET content = #{content}
+        WHERE id = #{id}
+    </update>
+
+    <!--
+        deleteById: ID でコメントを1件削除する（物理削除）。
+    -->
+    <delete id="deleteById">
+        DELETE FROM comments WHERE id = #{id}
+    </delete>
+
+</mapper>

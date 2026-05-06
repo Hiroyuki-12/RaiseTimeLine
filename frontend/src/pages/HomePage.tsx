@@ -187,6 +187,14 @@ export default function HomePage() {
     setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
   }
 
+  /**
+   * いいねトグル後に posts 配列を更新するコールバック。
+   * PostCard の楽観的更新と同期し、スクロール中でも正しい状態を保つ。
+   */
+  const handleLikeToggled = (postId: number, liked: boolean, likeCount: number) => {
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, liked, likeCount } : p)))
+  }
+
   // --------- レンダリング ---------
 
   if (isLoading) {
@@ -259,6 +267,7 @@ export default function HomePage() {
                 currentUserId={currentUserId}
                 onDeleted={handlePostDeleted}
                 onUpdated={handlePostUpdated}
+                onLikeToggled={handleLikeToggled}
               />
             ))}
             {/* 無限スクロールのセンター要素 */}

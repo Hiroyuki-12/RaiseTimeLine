@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    LikeMapper.xml: LikeMapper インターフェースの各メソッドに対応する SQL を定義する。
+-->
+<mapper namespace="com.raisetimeline.like.LikeMapper">
+
+    <!--
+        insert: likes テーブルに1件 INSERT する。
+        ON CONFLICT DO NOTHING: (post_id, user_id) の UNIQUE 制約違反が起きても
+        エラーを返さずに無視する。これにより同時リクエストによる重複登録を防ぐ（冪等性確保）。
+    -->
+    <insert id="insert">
+        INSERT INTO likes (post_id, user_id, created_at)
+        VALUES (#{postId}, #{userId}, NOW())
+        ON CONFLICT (post_id, user_id) DO NOTHING
+    </insert>
+
+    <!--
+        delete: 指定した投稿・ユーザーのいいねを削除する。
+    -->
+    <delete id="delete">
+        DELETE FROM likes
+        WHERE post_id = #{postId} AND user_id = #{userId}
+    </delete>
+
+    <!--
+        exists: 指定した投稿・ユーザーのいいねが存在するか確認する。
+        EXISTS サブクエリは1件でも見つかれば即座に true を返すため、COUNT より高速。
+    -->
+    <select id="exists" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM likes
+            WHERE post_id = #{postId} AND user_id = #{userId}
+        )
+    </select>
+
+</mapper>
