@@ -199,6 +199,18 @@ export default function HomePage() {
 
   return (
     <div style={styles.layout}>
+      {/* 新着フローティングバナー: 画面上部中央に固定表示 */}
+      {newCount > 0 && (
+        <div
+          style={styles.newPostBanner}
+          onClick={handleRefresh}
+          role="button"
+          tabIndex={0}
+        >
+          ↑ {newCount}件の新しい投稿を見る
+        </div>
+      )}
+
       {/* 左サイドバー */}
       <Sidebar
         displayName={displayName}
@@ -232,13 +244,6 @@ export default function HomePage() {
           <Avatar displayName={displayName} username={username} size={42} />
           <span style={styles.composePlaceholder}>いまどうしてる？</span>
         </div>
-
-        {/* 新着バナー */}
-        {newCount > 0 && (
-          <div style={styles.newPostBanner} onClick={handleRefresh} role="button" tabIndex={0}>
-            {newCount}件の新しい投稿を見る
-          </div>
-        )}
 
         {/* タイムライン */}
         {timelineError ? (
@@ -355,13 +360,20 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
   },
   newPostBanner: {
+    position: 'fixed',
+    top: 16,
+    left: '50%',
+    transform: 'translateX(-50%)',
     background: '#1d9bf0',
     color: '#ffffff',
-    textAlign: 'center',
-    padding: '10px 16px',
+    padding: '10px 24px',
+    borderRadius: 9999,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
     cursor: 'pointer',
     fontSize: 14,
     fontWeight: 700,
+    zIndex: 200,
+    whiteSpace: 'nowrap',
   },
   errorText: {
     textAlign: 'center',
