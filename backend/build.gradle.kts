@@ -7,6 +7,10 @@ plugins {
     // Spring Boot の依存バージョン管理を自動で行うプラグイン
     // これにより各ライブラリのバージョンを個別に指定しなくてよくなる
     id("io.spring.dependency-management") version "1.1.7"
+    // Spotless: コードフォーマッターの自動適用・チェックプラグイン
+    // ./gradlew spotlessCheck でフォーマット違反を検出
+    // ./gradlew spotlessApply でフォーマットを自動修正
+    id("com.diffplug.spotless") version "7.0.4"
 }
 
 group = "com.raisetimeline"
@@ -76,4 +80,26 @@ dependencies {
 tasks.withType<Test> {
     // JUnit 5 (JUnit Platform) でテストを実行する設定
     useJUnitPlatform()
+}
+
+/*
+ * Spotless コードフォーマット設定
+ * google-java-format を使って Java コードのスタイルを統一する。
+ * Google Java Style Guide に沿ったインデント・改行・インポート順が強制される。
+ *
+ * 使い方:
+ *   ./gradlew spotlessCheck  → フォーマット違反の検出（CI でのチェックに使う）
+ *   ./gradlew spotlessApply  → フォーマットの自動修正（コミット前に実行）
+ */
+spotless {
+    java {
+        // google-java-format でフォーマット（AOSP スタイル = インデント4スペース）
+        googleJavaFormat().aosp()
+        // 未使用 import の自動削除
+        removeUnusedImports()
+        // ファイル末尾の空白を削除
+        trimTrailingWhitespace()
+        // ファイル末尾の改行を統一
+        endWithNewline()
+    }
 }
