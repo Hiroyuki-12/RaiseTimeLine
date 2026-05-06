@@ -10,7 +10,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * このアノテーションがないと @Mapper アノテーションが付いていても Spring に認識されない。
  */
 @SpringBootApplication
-@MapperScan("com.raisetimeline.user") // user パッケージの @Mapper インターフェースを Spring Bean として登録する
+// Mapper インターフェースが置かれているパッケージをすべて列挙する
+// user: UserMapper、auth: RefreshTokenMapper を含む
+@MapperScan({"com.raisetimeline.user", "com.raisetimeline.auth"})
 public class BackendApplication {
 
     public static void main(String[] args) {

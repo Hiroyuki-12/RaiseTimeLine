@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -69,6 +70,18 @@ public class JwtUtil {
      */
     public String extractEmail(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    /**
+     * リフレッシュトークンを生成する。
+     * JWT ではなく UUID v4 の不透明トークンを使う。
+     * リフレッシュトークンは DB に保存して照合するため、JWT のように自己完結している必要がない。
+     * UUID にすることで実装がシンプルになり、DB 削除だけで即時無効化できる。
+     *
+     * @return UUID v4 の文字列（例: "550e8400-e29b-41d4-a716-446655440000"）
+     */
+    public String generateRefreshToken() {
+        return UUID.randomUUID().toString();
     }
 
     /**

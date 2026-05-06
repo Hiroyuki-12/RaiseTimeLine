@@ -52,4 +52,13 @@
         )
     </select>
 
+    <!--
+        findById: ユーザー ID でユーザーを1件検索する。
+        リフレッシュトークンには userId が記録されているため、
+        アクセストークン再発行時にユーザー情報を取得するために使う。
+    -->
+    <select id="findById" resultType="com.raisetimeline.user.User">
+        SELECT * FROM users WHERE id = #{id}
+    </select>
+
 </mapper>
