@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { type Post, updatePost, deletePost, addLike, removeLike } from '../api/post'
 import { Avatar } from './Sidebar'
 import ConfirmModal from './ConfirmModal'
@@ -125,16 +125,21 @@ export default function PostCard({
 
   return (
     <div style={styles.card}>
-      {/* 左カラム: アバター */}
-      <Avatar displayName={post.authorDisplayName} username={post.authorUsername} size={42} />
+      {/* 左カラム: アバター（クリックでプロフィールページへ遷移） */}
+      <Link to={`/users/${post.authorUsername}`} style={{ flexShrink: 0 }}>
+        <Avatar displayName={post.authorDisplayName} username={post.authorUsername} size={42} />
+      </Link>
 
       {/* 右カラム: ヘッダー・本文・フッター */}
       <div style={styles.body}>
         {/* ヘッダー: 表示名・@handle・相対時間・操作ボタン */}
         <div style={styles.header}>
           <div style={styles.authorInfo}>
-            <span style={styles.displayName}>{post.authorDisplayName}</span>
-            <span style={styles.username}>@{post.authorUsername}</span>
+            {/* 表示名と @handle クリックでプロフィールページへ遷移する */}
+            <Link to={`/users/${post.authorUsername}`} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'baseline', gap: 4 }}>
+              <span style={styles.displayName}>{post.authorDisplayName}</span>
+              <span style={styles.username}>@{post.authorUsername}</span>
+            </Link>
             <span style={styles.dot}>·</span>
             <span style={styles.time}>{relativeTime(post.createdAt)}</span>
           </div>

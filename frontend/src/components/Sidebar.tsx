@@ -1,8 +1,9 @@
 /**
  * 左サイドバーナビゲーションコンポーネント。
  * ロゴ・ホーム・検索・プロフィール・投稿するボタン・ユーザー情報・ログアウトを表示する。
- * 検索・プロフィールは今後の実装に向けて UI のみ配置する。
  */
+
+import { Link } from 'react-router-dom'
 
 interface Props {
   displayName: string
@@ -29,10 +30,11 @@ export default function Sidebar({ displayName, username, onOpenPostModal, onLogo
           <span style={styles.navIcon}>🔍</span>
           <span style={styles.navLabel}>検索</span>
         </div>
-        <div style={{ ...styles.navItem, opacity: 0.4, cursor: 'not-allowed' }}>
+        {/* プロフィールナビアイテム: 自分のプロフィールページへ遷移する */}
+        <Link to={`/users/${username}`} style={{ ...styles.navItem, textDecoration: 'none', color: 'inherit' }}>
           <span style={styles.navIcon}>👤</span>
           <span style={styles.navLabel}>プロフィール</span>
-        </div>
+        </Link>
       </nav>
 
       {/* 投稿するボタン */}
@@ -42,13 +44,14 @@ export default function Sidebar({ displayName, username, onOpenPostModal, onLogo
 
       {/* ユーザー情報 + ログアウト（下部に固定） */}
       <div style={styles.userSection}>
-        <div style={styles.userInfo}>
+        {/* アバタークリックで自分のプロフィールページへ遷移する */}
+        <Link to={`/users/${username}`} style={{ ...styles.userInfo, textDecoration: 'none', color: 'inherit' }}>
           <Avatar displayName={displayName} username={username} size={36} />
           <div>
             <div style={styles.userName}>{displayName}</div>
             <div style={styles.userHandle}>@{username}</div>
           </div>
-        </div>
+        </Link>
         <button style={styles.logoutButton} onClick={onLogout}>
           ログアウト
         </button>

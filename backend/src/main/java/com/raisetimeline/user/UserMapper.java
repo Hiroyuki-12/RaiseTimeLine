@@ -2,6 +2,7 @@ package com.raisetimeline.user;
 
 import java.util.Optional;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 /**
  * users テーブルへの SQL 操作を定義する MyBatis Mapper インターフェース。 @Mapper アノテーションを付けると Spring Boot
@@ -50,4 +51,29 @@ public interface UserMapper {
      * @return 見つかった場合は Optional<User>、見つからなければ Optional.empty()
      */
     Optional<User> findById(Long id);
+
+    /**
+     * ユーザー名（@handle）でユーザーを1件検索する。 プロフィールページの URL パラメータから取得するために使う。
+     *
+     * @param username 検索するユーザー名
+     * @return 見つかった場合は Optional<User>、見つからなければ Optional.empty()
+     */
+    Optional<User> findByUsername(String username);
+
+    /**
+     * ユーザーのプロフィール情報を更新する。 username, display_name, bio を更新対象とする。
+     *
+     * @param user 更新するユーザー情報（id が必須）
+     */
+    void update(User user);
+
+    /**
+     * 指定したユーザー名が自分以外に存在するか確認する。 プロフィール編集時のユーザー名重複チェックに使う（自分が今持っているユーザー名は除外する）。
+     *
+     * @param username 確認するユーザー名
+     * @param userId 除外する自分のユーザー ID
+     * @return 自分以外に同じユーザー名が存在する場合 true
+     */
+    boolean existsByUsernameExcludingSelf(
+            @Param("username") String username, @Param("userId") Long userId);
 }

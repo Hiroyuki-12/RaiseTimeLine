@@ -12,13 +12,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 // Mapper インターフェースが置かれているパッケージをすべて列挙する
 // user: UserMapper、auth: RefreshTokenMapper、post: PostMapper
-// comment: CommentMapper、like: LikeMapper を含む
+// comment: CommentMapper、like: LikeMapper、follow: FollowMapper を含む
 @MapperScan({
     "com.raisetimeline.user",
     "com.raisetimeline.auth",
     "com.raisetimeline.post",
     "com.raisetimeline.comment",
-    "com.raisetimeline.like"
+    "com.raisetimeline.like",
+    "com.raisetimeline.follow"
 })
 public class BackendApplication {
 

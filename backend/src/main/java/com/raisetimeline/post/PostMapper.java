@@ -91,6 +91,16 @@ public interface PostMapper {
             @Param("id") Long id, @Param("currentUserEmail") String currentUserEmail);
 
     /**
+     * 指定ユーザーの投稿を新しい順に取得する（プロフィールページの投稿一覧用）。 いいね数・コメント数・liked フラグを集計サブクエリで取得するため N+1 は発生しない。
+     *
+     * @param userId 投稿者のユーザー ID
+     * @param currentUserEmail 現在のユーザーのメールアドレス（liked 判定に使う）
+     * @return PostResponse のリスト（新しい順）
+     */
+    List<PostResponse> findByUserIdOrderByCreatedAtDesc(
+            @Param("userId") Long userId, @Param("currentUserEmail") String currentUserEmail);
+
+    /**
      * ポストの content と updated_at を更新する。
      *
      * @param post content と id がセット済みのポストオブジェクト
