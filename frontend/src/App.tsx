@@ -3,11 +3,13 @@
  * React Router v6 の BrowserRouter を使ってページ遷移を管理する。
  *
  * ルート一覧:
- * /              → /login にリダイレクト
- * /login         → ログイン画面
- * /register      → 新規登録画面
- * /home          → ログイン後のホーム画面（未認証時は /login へ）
- * /posts/:postId → 投稿詳細・コメント画面（未認証時は /login へ）
+ * /                          → /login にリダイレクト
+ * /login                     → ログイン画面
+ * /register                  → 新規登録画面
+ * /home                      → ログイン後のホーム画面（未認証時は /login へ）
+ * /posts/:postId             → 投稿詳細・コメント画面（未認証時は /login へ）
+ * /users/:username           → プロフィールページ
+ * /users/:username/follows   → フォロー/フォロワー一覧ページ
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
@@ -15,6 +17,8 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import HomePage from './pages/HomePage'
 import PostDetailPage from './pages/PostDetailPage'
+import ProfilePage from './pages/ProfilePage'
+import FollowListPage from './pages/FollowListPage'
 
 function App() {
   return (
@@ -27,6 +31,10 @@ function App() {
         <Route path="/home" element={<HomePage />} />
         {/* 投稿詳細・コメントページ */}
         <Route path="/posts/:postId" element={<PostDetailPage />} />
+        {/* プロフィールページ */}
+        <Route path="/users/:username" element={<ProfilePage />} />
+        {/* フォロー/フォロワー一覧ページ */}
+        <Route path="/users/:username/follows" element={<FollowListPage />} />
       </Routes>
     </BrowserRouter>
   )

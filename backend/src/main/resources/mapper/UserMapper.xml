@@ -61,4 +61,39 @@
         SELECT * FROM users WHERE id = #{id}
     </select>
 
+    <!--
+        findByUsername: ユーザー名（@handle）でユーザーを1件検索する。
+        プロフィールページは /users/:username という URL 構造なので
+        username でユーザーを引く必要がある。
+    -->
+    <select id="findByUsername" resultType="com.raisetimeline.user.User">
+        SELECT * FROM users WHERE username = #{username}
+    </select>
+
+    <!--
+        update: ユーザーのプロフィール情報を更新する。
+        username, display_name, bio を更新対象とする。
+        updated_at は常に現在時刻に更新する。
+    -->
+    <update id="update">
+        UPDATE users
+        SET username     = #{username},
+            display_name = #{displayName},
+            bio          = #{bio},
+            updated_at   = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!--
+        existsByUsernameExcludingSelf: 自分以外に同じユーザー名が存在するか確認する。
+        プロフィール編集時に「変更後のユーザー名が他のユーザーに使われていないか」を
+        確認するために使う。自分が既に持っているユーザー名への更新は許可したいので
+        自分の id を除外する。
+    -->
+    <select id="existsByUsernameExcludingSelf" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM users WHERE username = #{username} AND id != #{userId}
+        )
+    </select>
+
 </mapper>

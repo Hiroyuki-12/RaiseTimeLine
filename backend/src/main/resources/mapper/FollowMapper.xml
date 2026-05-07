@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    FollowMapper.xml: FollowMapper インターフェースの各メソッドに対応する SQL を定義する。
+-->
+<mapper namespace="com.raisetimeline.follow.FollowMapper">
+
+    <!--
+        insert: follows テーブルに1件 INSERT する。
+        ON CONFLICT DO NOTHING: UNIQUE 制約違反でもエラーを返さず無視する（冪等性確保）。
+    -->
+    <insert id="insert">
+        INSERT INTO follows (follower_id, followee_id, created_at)
+        VALUES (#{followerId}, #{followeeId}, NOW())
+        ON CONFLICT (follower_id, followee_id) DO NOTHING
+    </insert>
+
+    <!--
+        delete: フォロー関係を物理削除する（アンフォロー）。
+    -->
+    <delete id="delete">
+        DELETE FROM follows
+        WHERE follower_id = #{followerId} AND followee_id = #{followeeId}
+    </delete>
+
+    <!--
+        exists: フォロー関係が存在するか確認する。
+        EXISTS サブクエリは1件見つかれば即座に true を返す。
+    -->
+    <select id="exists" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM follows
+            WHERE follower_id = #{followerId} AND followee_id = #{followeeId}
+        )
+    </select>
+
+    <!--
+        findFollowing: 指定ユーザーがフォローしているユーザー一覧を取得する。
+        follows JOIN users で N+1 を防ぎ1クエリで取得する。
+        isFollowing: 現在ログイン中のユーザーがそのユーザーをフォローしているかを EXISTS で判定する。
+    -->
+    <select id="findFollowing" resultType="com.raisetimeline.user.dto.UserSummary">
+        SELECT
+            u.id,
+            u.username,
+            u.display_name AS displayName,
+            u.avatar_url   AS avatarUrl,
+            EXISTS(
+                SELECT 1 FROM follows f2
+                WHERE f2.follower_id = #{currentUserId} AND f2.followee_id = u.id
+            ) AS isFollowing
+        FROM follows f
+        INNER JOIN users u ON f.followee_id = u.id
+        WHERE f.follower_id = #{userId}
+        ORDER BY f.created_at DESC
+    </select>
+
+    <!--
+        findFollowers: 指定ユーザーをフォローしているユーザー一覧を取得する。
+    -->
+    <select id="findFollowers" resultType="com.raisetimeline.user.dto.UserSummary">
+        SELECT
+            u.id,
+            u.username,
+            u.display_name AS displayName,
+            u.avatar_url   AS avatarUrl,
+            EXISTS(
+                SELECT 1 FROM follows f2
+                WHERE f2.follower_id = #{currentUserId} AND f2.followee_id = u.id
+            ) AS isFollowing
+        FROM follows f
+        INNER JOIN users u ON f.follower_id = u.id
+        WHERE f.followee_id = #{userId}
+        ORDER BY f.created_at DESC
+    </select>
+
+    <!--
+        countFollowing: フォロー中のユーザー数をカウントする。
+    -->
+    <select id="countFollowing" resultType="long">
+        SELECT COUNT(*) FROM follows WHERE follower_id = #{userId}
+    </select>
+
+    <!--
+        countFollowers: フォロワー数をカウントする。
+    -->
+    <select id="countFollowers" resultType="long">
+        SELECT COUNT(*) FROM follows WHERE followee_id = #{userId}
+    </select>
+
+</mapper>

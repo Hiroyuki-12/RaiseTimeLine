@@ -134,6 +134,32 @@
     </select>
 
     <!--
+        findByUserIdOrderByCreatedAtDesc: 指定ユーザーの投稿を新しい順に取得する（プロフィール用）。
+        タイムラインと同じ集計サブクエリで N+1 なしにいいね数・コメント数・liked フラグを取得する。
+    -->
+    <select id="findByUserIdOrderByCreatedAtDesc" resultType="com.raisetimeline.post.dto.PostResponse">
+        SELECT
+            p.id            AS id,
+            p.content       AS content,
+            u.id            AS authorId,
+            u.username      AS authorUsername,
+            u.display_name  AS authorDisplayName,
+            p.created_at    AS createdAt,
+            p.updated_at    AS updatedAt,
+            (SELECT COUNT(*) FROM likes    l WHERE l.post_id = p.id)  AS likeCount,
+            (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)  AS commentCount,
+            (SELECT EXISTS(
+                SELECT 1 FROM likes lx
+                JOIN users cu ON cu.id = lx.user_id
+                WHERE lx.post_id = p.id AND cu.email = #{currentUserEmail}
+            ))                                                          AS liked
+        FROM posts p
+        INNER JOIN users u ON p.user_id = u.id
+        WHERE p.user_id = #{userId}
+        ORDER BY p.created_at DESC
+    </select>
+
+    <!--
         findById: ID でポストを1件検索する。
         編集・削除前のオーナーチェック（user_id の確認）のために使う。
     -->
