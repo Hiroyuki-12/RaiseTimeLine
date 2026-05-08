@@ -118,3 +118,31 @@ export const fetchFollowers = async (username: string): Promise<UserSummary[]> =
   const res = await apiClient.get<UserSummary[]>(`/users/${username}/followers`)
   return res.data
 }
+
+/**
+ * ユーザー検索 API。
+ * GET /api/users/search?q=キーワード
+ * ユーザー名の部分一致で検索し、isFollowing フラグ付きで返す（最大 20 件）。
+ *
+ * @param q 検索キーワード（1文字以上）
+ */
+export const searchUsers = async (q: string): Promise<UserSummary[]> => {
+  const res = await apiClient.get<UserSummary[]>('/users/search', { params: { q } })
+  return res.data
+}
+
+/**
+ * アバター画像アップロード API。
+ * POST /api/users/me/avatar (multipart/form-data)
+ * 画像を S3 に保存し、更新後のプロフィールを返す。
+ *
+ * @param file アップロードする画像ファイル（JPEG または PNG、2MB 以下）
+ */
+export const uploadAvatar = async (file: File): Promise<UserProfile> => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await apiClient.post<UserProfile>('/users/me/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}

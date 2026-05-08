@@ -85,6 +85,42 @@
     </update>
 
     <!--
+        findByUsernameContaining: キーワードでユーザー名を部分一致検索する（ユーザー検索画面用）。
+        ILIKE は PostgreSQL 独自の大文字小文字を無視した LIKE 演算子。
+        自分自身は結果から除外する（検索結果で自分をフォローするのは不自然なため）。
+        isFollowing フラグは EXISTS サブクエリで1クエリで判定する（N+1 防止）。
+        結果はユーザー名のアルファベット順で最大 20 件返す。
+    -->
+    <select id="findByUsernameContaining" resultType="com.raisetimeline.user.dto.UserSummary">
+        SELECT
+            u.id           AS id,
+            u.username     AS username,
+            u.display_name AS displayName,
+            u.avatar_url   AS avatarUrl,
+            (SELECT EXISTS(
+                SELECT 1 FROM follows f
+                WHERE f.follower_id = #{currentUserId} AND f.followee_id = u.id
+            ))             AS isFollowing
+        FROM users u
+        WHERE u.username ILIKE CONCAT('%', #{q}, '%')
+          AND u.id != #{currentUserId}
+        ORDER BY u.username
+        LIMIT 20
+    </select>
+
+    <!--
+        updateAvatarUrl: ユーザーのアバター URL のみを更新する。
+        プロフィール画像アップロード後に S3 の公開 URL を保存するために使う。
+        updated_at も同時に更新して「最終更新日時」を正確に保つ。
+    -->
+    <update id="updateAvatarUrl">
+        UPDATE users
+        SET avatar_url = #{avatarUrl},
+            updated_at = NOW()
+        WHERE id = #{userId}
+    </update>
+
+    <!--
         existsByUsernameExcludingSelf: 自分以外に同じユーザー名が存在するか確認する。
         プロフィール編集時に「変更後のユーザー名が他のユーザーに使われていないか」を
         確認するために使う。自分が既に持っているユーザー名への更新は許可したいので

@@ -1,5 +1,7 @@
 package com.raisetimeline.user;
 
+import com.raisetimeline.user.dto.UserSummary;
+import java.util.List;
 import java.util.Optional;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -76,4 +78,25 @@ public interface UserMapper {
      */
     boolean existsByUsernameExcludingSelf(
             @Param("username") String username, @Param("userId") Long userId);
+
+    /**
+     * ユーザー名の部分一致でユーザーを検索する（ユーザー検索画面用）。
+     *
+     * <p>PostgreSQL の ILIKE を使い大文字小文字を区別せずに部分一致検索する。 自分自身は結果から除外する（自分をフォローするのは不自然なため）。 EXISTS
+     * サブクエリで isFollowing フラグを1クエリで判定する（N+1 防止）。
+     *
+     * @param q 検索キーワード（1文字以上）
+     * @param currentUserId 現在ログイン中のユーザー ID（isFollowing 判定・自分除外に使う）
+     * @return マッチしたユーザーの一覧（UserSummary 形式、最大 20 件）
+     */
+    List<UserSummary> findByUsernameContaining(
+            @Param("q") String q, @Param("currentUserId") Long currentUserId);
+
+    /**
+     * ユーザーのアバター URL のみを更新する（画像アップロード後の更新に使う）。
+     *
+     * @param userId 更新対象のユーザー ID
+     * @param avatarUrl 新しいアバター画像 URL（S3 の公開 URL）
+     */
+    void updateAvatarUrl(@Param("userId") Long userId, @Param("avatarUrl") String avatarUrl);
 }

@@ -12,6 +12,10 @@ export interface Post {
   authorId: number
   authorUsername: string
   authorDisplayName: string
+  /** 投稿者のプロフィール画像 URL（未設定の場合は null → イニシャルアバターにフォールバック） */
+  authorAvatarUrl: string | null
+  /** 投稿に添付された画像の URL（画像なし投稿は null） */
+  imageUrl: string | null
   createdAt: string // ISO 8601 形式の文字列（例: "2024-01-15T12:34:56"）
   updatedAt: string
   likeCount: number // いいね数（SQL 集計サブクエリで取得。投稿件数に関係なく1クエリで済む）
@@ -21,14 +25,19 @@ export interface Post {
 
 /**
  * タイムライン取得 API（ページネーション付き）。
- * GET /api/posts?page=&size=
+ * GET /api/posts?page=&size=&timeline=
  * ポストを新しい順で取得する。
  *
  * @param page 0 始まりのページ番号
  * @param size 1 ページあたりの件数
+ * @param timeline "all"（全員）または "following"（フォロー中のユーザーのみ）
  */
-export const fetchTimeline = async (page: number, size: number): Promise<Post[]> => {
-  const res = await apiClient.get<Post[]>('/posts', { params: { page, size } })
+export const fetchTimeline = async (
+  page: number,
+  size: number,
+  timeline: 'all' | 'following' = 'all',
+): Promise<Post[]> => {
+  const res = await apiClient.get<Post[]>('/posts', { params: { page, size, timeline } })
   return res.data
 }
 
@@ -47,13 +56,22 @@ export const fetchNewCount = async (since: string): Promise<{ count: number }> =
 
 /**
  * ポスト作成 API。
- * POST /api/posts
- * 認証済みユーザーが新しい投稿を作成する。
+ * POST /api/posts (multipart/form-data)
+ * 認証済みユーザーが新しい投稿を作成する。画像は任意で添付できる。
  *
  * @param content 投稿本文（1〜280 文字）
+ * @param image 添付画像ファイル（任意。JPEG または PNG、2MB 以下）
  */
-export const createPost = async (content: string): Promise<Post> => {
-  const res = await apiClient.post<Post>('/posts', { content })
+export const createPost = async (content: string, image?: File): Promise<Post> => {
+  // multipart/form-data で送信するため FormData を使う
+  const formData = new FormData()
+  formData.append('content', content)
+  if (image) {
+    formData.append('image', image)
+  }
+  const res = await apiClient.post<Post>('/posts', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
   return res.data
 }
 

@@ -5,7 +5,8 @@
  */
 
 import React, { useState } from 'react'
-import { updateProfile, type UserProfile, type UpdateProfileRequest } from '../api/user'
+import { updateProfile, uploadAvatar, type UserProfile, type UpdateProfileRequest } from '../api/user'
+import { Avatar } from './Sidebar'
 
 interface Props {
   /** 編集対象のプロフィール（初期値として使う） */
@@ -22,6 +23,31 @@ export default function ProfileEditModal({ profile, onClose, onSaved }: Props) {
   const [bio, setBio] = useState(profile.bio ?? '')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // アバター画像のプレビュー URL（選択時のみ表示する）
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+
+  // 画像ファイルが選択されたときのプレビュー更新処理
+  const handleAvatarChange = (file: File) => {
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview)
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
+
+  /**
+   * 画像アップロードボタンを押したときの処理。
+   * input 要素を動的に生成して click() を呼び、ファイルピッカー（Finder）を開く。
+   */
+  const openAvatarFilePicker = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/jpeg,image/png'
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (file) handleAvatarChange(file)
+    }
+    input.click()
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,14 +55,20 @@ export default function ProfileEditModal({ profile, onClose, onSaved }: Props) {
     setIsSubmitting(true)
     setError(null)
 
-    const req: UpdateProfileRequest = {
-      username: username.trim(),
-      displayName: displayName.trim(),
-      bio: bio.trim(),
-    }
-
     try {
+      // 画像が選択されている場合は先にアップロードする
+      if (avatarFile) {
+        await uploadAvatar(avatarFile)
+      }
+      // テキスト情報を更新する
+      const req: UpdateProfileRequest = {
+        username: username.trim(),
+        displayName: displayName.trim(),
+        bio: bio.trim(),
+      }
       const updated = await updateProfile(req)
+      // プレビュー URL を解放する
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview)
       onSaved(updated)
       onClose()
     } catch (err: unknown) {
@@ -61,6 +93,34 @@ export default function ProfileEditModal({ profile, onClose, onSaved }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>
+          {/* アバター画像 */}
+          <div style={styles.avatarSection}>
+            {/* 現在のアバター（プレビューまたは既存画像） */}
+            <Avatar
+              displayName={displayName || profile.displayName}
+              username={profile.username}
+              avatarUrl={avatarPreview ?? profile.avatarUrl}
+              size={80}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={styles.label}>プロフィール画像</span>
+              {/* 画像アップロードボタン: クリックで動的に input[type=file] を生成して Finder を開く */}
+              <button
+                type="button"
+                style={{
+                  ...styles.avatarButton,
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                  opacity: isSubmitting ? 0.5 : 1,
+                }}
+                onClick={openAvatarFilePicker}
+                disabled={isSubmitting}
+              >
+                {avatarFile ? '画像を変更' : '画像をアップロード'}
+              </button>
+              <span style={styles.hint}>JPEG または PNG、2MB 以下</span>
+            </div>
+          </div>
+
           {/* ユーザー名 */}
           <div style={styles.field}>
             <label style={styles.label}>ユーザー名</label>
@@ -227,6 +287,24 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'flex-end',
     gap: 12,
     marginTop: 4,
+  },
+  avatarSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 20,
+    padding: '8px 0',
+    borderBottom: '1px solid #e1e8ed',
+    paddingBottom: 20,
+  },
+  avatarButton: {
+    padding: '8px 16px',
+    background: 'transparent',
+    border: '1px solid #cfd9de',
+    borderRadius: 9999,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    color: '#0f1419',
   },
   cancelButton: {
     padding: '10px 20px',

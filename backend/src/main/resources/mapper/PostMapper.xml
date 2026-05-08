@@ -25,14 +25,16 @@
         MyBatis では INSERT...RETURNING も <select> タグで扱うことで ResultSet を受け取れる。
     -->
     <select id="insertAndReturn" resultType="com.raisetimeline.post.dto.PostResponse">
-        INSERT INTO posts (user_id, content, created_at, updated_at)
-        VALUES (#{userId}, #{content}, NOW(), NOW())
+        INSERT INTO posts (user_id, content, image_url, created_at, updated_at)
+        VALUES (#{userId}, #{content}, #{imageUrl}, NOW(), NOW())
         RETURNING
             id,
             content,
             (SELECT id           FROM users WHERE id = #{userId}) AS authorId,
             (SELECT username     FROM users WHERE id = #{userId}) AS authorUsername,
             (SELECT display_name FROM users WHERE id = #{userId}) AS authorDisplayName,
+            (SELECT avatar_url   FROM users WHERE id = #{userId}) AS authorAvatarUrl,
+            image_url   AS imageUrl,
             created_at  AS createdAt,
             updated_at  AS updatedAt,
             0           AS likeCount,
@@ -56,6 +58,8 @@
             (SELECT id           FROM users u WHERE u.id = user_id) AS authorId,
             (SELECT username     FROM users u WHERE u.id = user_id) AS authorUsername,
             (SELECT display_name FROM users u WHERE u.id = user_id) AS authorDisplayName,
+            (SELECT avatar_url   FROM users u WHERE u.id = user_id) AS authorAvatarUrl,
+            image_url  AS imageUrl,
             created_at AS createdAt,
             updated_at AS updatedAt,
             (SELECT COUNT(*) FROM likes    l WHERE l.post_id = id)   AS likeCount,
@@ -83,6 +87,8 @@
             u.id            AS authorId,
             u.username      AS authorUsername,
             u.display_name  AS authorDisplayName,
+            u.avatar_url    AS authorAvatarUrl,
+            p.image_url     AS imageUrl,
             p.created_at    AS createdAt,
             p.updated_at    AS updatedAt,
             (SELECT COUNT(*) FROM likes    l WHERE l.post_id = p.id)  AS likeCount,
@@ -119,6 +125,8 @@
             u.id            AS authorId,
             u.username      AS authorUsername,
             u.display_name  AS authorDisplayName,
+            u.avatar_url    AS authorAvatarUrl,
+            p.image_url     AS imageUrl,
             p.created_at    AS createdAt,
             p.updated_at    AS updatedAt,
             (SELECT COUNT(*) FROM likes    l WHERE l.post_id = p.id)  AS likeCount,
@@ -144,6 +152,8 @@
             u.id            AS authorId,
             u.username      AS authorUsername,
             u.display_name  AS authorDisplayName,
+            u.avatar_url    AS authorAvatarUrl,
+            p.image_url     AS imageUrl,
             p.created_at    AS createdAt,
             p.updated_at    AS updatedAt,
             (SELECT COUNT(*) FROM likes    l WHERE l.post_id = p.id)  AS likeCount,
@@ -157,6 +167,38 @@
         INNER JOIN users u ON p.user_id = u.id
         WHERE p.user_id = #{userId}
         ORDER BY p.created_at DESC
+    </select>
+
+    <!--
+        findFollowingPageOrderByCreatedAtDesc: フォロー中ユーザーの投稿を新しい順に取得する（フォロー中タイムライン）。
+        follows テーブルと INNER JOIN して「自分がフォローしている人」の投稿のみ抽出する。
+        全員タイムラインと同じ集計サブクエリで N+1 なしにいいね数・コメント数・liked フラグを取得する。
+    -->
+    <select id="findFollowingPageOrderByCreatedAtDesc"
+            resultType="com.raisetimeline.post.dto.PostResponse">
+        SELECT
+            p.id            AS id,
+            p.content       AS content,
+            u.id            AS authorId,
+            u.username      AS authorUsername,
+            u.display_name  AS authorDisplayName,
+            u.avatar_url    AS authorAvatarUrl,
+            p.image_url     AS imageUrl,
+            p.created_at    AS createdAt,
+            p.updated_at    AS updatedAt,
+            (SELECT COUNT(*) FROM likes    l WHERE l.post_id = p.id)  AS likeCount,
+            (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)  AS commentCount,
+            (SELECT EXISTS(
+                SELECT 1 FROM likes lx
+                JOIN users cu ON cu.id = lx.user_id
+                WHERE lx.post_id = p.id AND cu.email = #{currentUserEmail}
+            ))                                                          AS liked
+        FROM posts p
+        INNER JOIN users u ON p.user_id = u.id
+        INNER JOIN follows f ON f.followee_id = p.user_id
+        WHERE f.follower_id = #{userId}
+        ORDER BY p.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
     </select>
 
     <!--

@@ -19,6 +19,7 @@ import HomePage from './pages/HomePage'
 import PostDetailPage from './pages/PostDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import FollowListPage from './pages/FollowListPage'
+import SearchPage from './pages/SearchPage'
 
 function App() {
   return (
@@ -29,6 +30,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/home" element={<HomePage />} />
+        {/* ユーザー検索ページ */}
+        <Route path="/search" element={<SearchPage />} />
         {/* 投稿詳細・コメントページ */}
         <Route path="/posts/:postId" element={<PostDetailPage />} />
         {/* プロフィールページ */}

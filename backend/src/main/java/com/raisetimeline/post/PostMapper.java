@@ -34,6 +34,7 @@ public interface PostMapper {
     PostResponse insertAndReturn(
             @Param("userId") Long userId,
             @Param("content") String content,
+            @Param("imageUrl") String imageUrl,
             @Param("currentUserEmail") String currentUserEmail);
 
     /**
@@ -99,6 +100,24 @@ public interface PostMapper {
      */
     List<PostResponse> findByUserIdOrderByCreatedAtDesc(
             @Param("userId") Long userId, @Param("currentUserEmail") String currentUserEmail);
+
+    /**
+     * フォロー中のユーザーの投稿をページネーション付きで新しい順に取得する（フォロー中タイムライン用）。
+     *
+     * <p>follows テーブルと INNER JOIN してログイン中ユーザーがフォローしている人の投稿のみ取得する。 全員タイムラインと同じ集計サブクエリで N+1 なしに
+     * いいね数・コメント数・liked フラグを取得する。
+     *
+     * @param userId 現在ログイン中のユーザー ID（フォロー関係の基準）
+     * @param offset 取得開始位置（0 始まり）
+     * @param limit 取得件数
+     * @param currentUserEmail 現在のユーザーのメールアドレス（liked 判定に使う）
+     * @return PostResponse のリスト（新しい順）
+     */
+    List<PostResponse> findFollowingPageOrderByCreatedAtDesc(
+            @Param("userId") Long userId,
+            @Param("offset") int offset,
+            @Param("limit") int limit,
+            @Param("currentUserEmail") String currentUserEmail);
 
     /**
      * ポストの content と updated_at を更新する。

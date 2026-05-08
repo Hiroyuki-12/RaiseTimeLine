@@ -68,6 +68,11 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
 
+    // === AWS S3（画像アップロード） ===
+    // AWS SDK v2 の S3 クライアント。プロフィール画像・投稿画像を S3 バケットに保存するために使う。
+    // v1（com.amazonaws）は Deprecated のため v2（software.amazon.awssdk）を使用する。
+    implementation("software.amazon.awssdk:s3:2.25.23")
+
     // === テスト ===
     // Spring Boot のテストサポート（JUnit 5, MockMvc など）
     testImplementation("org.springframework.boot:spring-boot-starter-test")
