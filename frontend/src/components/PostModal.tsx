@@ -53,13 +53,26 @@ export default function PostModal({
 
   if (!isOpen) return null
 
-  // 画像選択時の処理（input の change イベントから呼ばれる）
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  // 画像ファイルが選択されたときのプレビュー更新処理
+  const handleImageChange = (file: File) => {
     if (imagePreview) URL.revokeObjectURL(imagePreview)
     setImageFile(file)
     setImagePreview(URL.createObjectURL(file))
+  }
+
+  /**
+   * 画像選択ボタンを押したときの処理。
+   * input 要素を動的に生成して click() を呼び、ファイルピッカー（Finder）を開く。
+   */
+  const openFilePicker = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/jpeg,image/png'
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (file) handleImageChange(file)
+    }
+    input.click()
   }
 
   // 画像選択を解除する
@@ -154,22 +167,20 @@ export default function PostModal({
           </div>
         </div>
 
-        {/* 画像選択:
-            ネイティブの <input type="file"> をそのまま表示する。
-            隠さず素のままにすることで、どのブラウザでも確実にクリック → ファイルピッカーが開く。
-            見た目は「ファイルを選択」ボタンになるが、機能は最も確実。 */}
+        {/* 画像選択ボタン: クリックで動的に input[type=file] を生成して Finder を開く */}
         <div style={styles.imageBar}>
-          <span style={{ marginRight: 8, color: '#536471', fontSize: 14 }}>🖼 画像</span>
-          <input
-            type="file"
-            accept="image/jpeg,image/png"
-            onChange={handleImageChange}
-            disabled={isSubmitting}
+          <button
+            type="button"
             style={{
-              fontSize: 14,
+              ...styles.imageButton,
               cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              opacity: isSubmitting ? 0.5 : 1,
             }}
-          />
+            onClick={openFilePicker}
+            disabled={isSubmitting}
+          >
+            🖼 画像を追加
+          </button>
         </div>
 
         {/* フッター: 文字数カウンター・投稿ボタン */}

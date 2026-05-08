@@ -27,13 +27,26 @@ export default function ProfileEditModal({ profile, onClose, onSaved }: Props) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
 
-  // 画像ファイルが選択されたときのプレビュー更新処理（input の change イベントから呼ばれる）
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  // 画像ファイルが選択されたときのプレビュー更新処理
+  const handleAvatarChange = (file: File) => {
     if (avatarPreview) URL.revokeObjectURL(avatarPreview)
     setAvatarFile(file)
     setAvatarPreview(URL.createObjectURL(file))
+  }
+
+  /**
+   * 画像アップロードボタンを押したときの処理。
+   * input 要素を動的に生成して click() を呼び、ファイルピッカー（Finder）を開く。
+   */
+  const openAvatarFilePicker = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/jpeg,image/png'
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (file) handleAvatarChange(file)
+    }
+    input.click()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,18 +104,19 @@ export default function ProfileEditModal({ profile, onClose, onSaved }: Props) {
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={styles.label}>プロフィール画像</span>
-              {/* ネイティブの <input type="file"> をそのまま表示する。
-                  隠さず素のままにすることで、どのブラウザでも確実にクリック → ファイルピッカーが開く。 */}
-              <input
-                type="file"
-                accept="image/jpeg,image/png"
-                onChange={handleAvatarChange}
-                disabled={isSubmitting}
+              {/* 画像アップロードボタン: クリックで動的に input[type=file] を生成して Finder を開く */}
+              <button
+                type="button"
                 style={{
-                  fontSize: 14,
+                  ...styles.avatarButton,
                   cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                  opacity: isSubmitting ? 0.5 : 1,
                 }}
-              />
+                onClick={openAvatarFilePicker}
+                disabled={isSubmitting}
+              >
+                {avatarFile ? '画像を変更' : '画像をアップロード'}
+              </button>
               <span style={styles.hint}>JPEG または PNG、2MB 以下</span>
             </div>
           </div>
