@@ -12,6 +12,7 @@ interface Props {
   isOpen: boolean
   displayName: string
   username: string
+  avatarUrl?: string | null
   onClose: () => void
   onPostCreated: (post: Post) => void
 }
@@ -20,13 +21,18 @@ export default function PostModal({
   isOpen,
   displayName,
   username,
+  avatarUrl,
   onClose,
   onPostCreated,
 }: Props) {
   const [content, setContent] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 添付画像ファイルとプレビュー URL の状態を管理する
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const MAX_LENGTH = 280
 
@@ -48,15 +54,37 @@ export default function PostModal({
 
   if (!isOpen) return null
 
+  // 画像選択時の処理
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // 古いプレビュー URL を解放してメモリリークを防ぐ
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
+  // 画像選択を解除する
+  const handleRemoveImage = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   const handleSubmit = async () => {
     if (!content.trim() || isSubmitting) return
     setIsSubmitting(true)
     setError(null)
     try {
-      const post = await createPost(content.trim())
+      const post = await createPost(content.trim(), imageFile ?? undefined)
       onPostCreated(post)
       // 成功時にフォームをリセットしてからモーダルを閉じる
       setContent('')
+      // プレビュー URL を解放する
+      if (imagePreview) URL.revokeObjectURL(imagePreview)
+      setImageFile(null)
+      setImagePreview(null)
       setError(null)
       onClose()
     } catch (err: unknown) {
@@ -79,6 +107,9 @@ export default function PostModal({
   const handleOverlayClose = () => {
     setContent('')
     setError(null)
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    setImageFile(null)
+    setImagePreview(null)
     onClose()
   }
 
@@ -95,16 +126,56 @@ export default function PostModal({
 
         {/* 投稿入力エリア */}
         <div style={styles.inputArea}>
-          <Avatar displayName={displayName} username={username} size={42} />
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="いまどうしてる？"
-            style={styles.textarea}
-            rows={4}
+          <Avatar displayName={displayName} username={username} avatarUrl={avatarUrl} size={42} />
+          <div style={{ flex: 1 }}>
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="いまどうしてる？"
+              style={styles.textarea}
+              rows={4}
+              disabled={isSubmitting}
+            />
+            {/* 画像プレビュー（選択時のみ表示） */}
+            {imagePreview && (
+              <div style={{ position: 'relative', marginTop: 8 }}>
+                <img
+                  src={imagePreview}
+                  alt="添付画像プレビュー"
+                  style={styles.imagePreview}
+                />
+                <button
+                  style={styles.removeImageButton}
+                  onClick={handleRemoveImage}
+                  title="画像を削除"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 画像選択ボタン（フォーター上部） */}
+        <div style={styles.imageBar}>
+          {/* 隠しの file input に紐付けたボタンで画像選択を起動する */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png"
+            style={{ display: 'none' }}
+            onChange={handleImageChange}
             disabled={isSubmitting}
           />
+          <button
+            style={styles.imageButton}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isSubmitting}
+            title="画像を添付"
+          >
+            🖼 画像を追加
+          </button>
         </div>
 
         {/* フッター: 文字数カウンター・投稿ボタン */}
@@ -215,5 +286,42 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 15,
     fontWeight: 700,
     cursor: 'pointer',
+  },
+  imageBar: {
+    padding: '0 16px 8px',
+    borderTop: '1px solid #e1e8ed',
+    paddingTop: 8,
+  },
+  imageButton: {
+    background: 'transparent',
+    border: 'none',
+    color: '#1d9bf0',
+    fontSize: 14,
+    cursor: 'pointer',
+    padding: '4px 8px',
+    borderRadius: 8,
+  },
+  imagePreview: {
+    width: '100%',
+    maxHeight: 200,
+    objectFit: 'cover' as const,
+    borderRadius: 12,
+    display: 'block',
+  },
+  removeImageButton: {
+    position: 'absolute' as const,
+    top: 8,
+    right: 8,
+    background: 'rgba(0,0,0,0.6)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '50%',
+    width: 24,
+    height: 24,
+    fontSize: 12,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 }

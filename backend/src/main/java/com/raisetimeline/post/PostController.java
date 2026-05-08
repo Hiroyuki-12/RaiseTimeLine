@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * ポストの CRUD に関する HTTP リクエストを受け付けるコントローラー。 SecurityConfig の anyRequest().authenticated() により、
@@ -46,11 +48,13 @@ public class PostController {
     @GetMapping
     public ResponseEntity<List<PostResponse>> getTimeline(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "all") String timeline) {
         // liked フラグの判定に現在ユーザーのメールアドレスが必要なため SecurityContextHolder から取得する
         String email =
                 (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return ResponseEntity.ok(postService.getPage(page, size, email));
+        // timeline="following" のときはフォロー中ユーザーの投稿のみ返す
+        return ResponseEntity.ok(postService.getPage(page, size, email, timeline));
     }
 
     /**
@@ -81,17 +85,34 @@ public class PostController {
     }
 
     /**
-     * ポスト作成エンドポイント。 POST /api/posts JWT から取得したメールアドレスで投稿者を特定し、ポストを作成する。
+     * ポスト作成エンドポイント。 POST /api/posts テキストと任意の画像ファイルを受け取り、投稿を作成する。
      *
-     * @param request 投稿内容を含むリクエスト DTO（@Valid でバリデーション実行）
+     * <p>multipart/form-data で送信する。"content" フィールドにテキスト、"image" フィールドに画像ファイルを入れる。
+     * 画像は任意（指定しない場合は画像なし投稿になる）。
+     *
+     * @param content 投稿テキスト（1〜280文字）
+     * @param image 添付画像ファイル（任意、JPEG または PNG、2MB 以下）
      * @return 201 Created + 作成した PostResponse
      */
-    @PostMapping
-    public ResponseEntity<PostResponse> createPost(@Valid @RequestBody CreatePostRequest request) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<PostResponse> createPost(
+            @RequestParam("content") String content,
+            @RequestParam(value = "image", required = false) MultipartFile image) {
+        // content のバリデーション（1〜280 文字）
+        if (content == null || content.isBlank()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "投稿内容を入力してください");
+        }
+        if (content.length() > 280) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "投稿内容は280文字以内にしてください");
+        }
         // JwtAuthFilter が SecurityContextHolder にセットしたメールアドレスを取得する
         String email =
                 (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        PostResponse response = postService.createPost(request, email);
+        // CreatePostRequest に変換してサービスに渡す
+        CreatePostRequest request = new CreatePostRequest(content);
+        PostResponse response = postService.createPost(request, image, email);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

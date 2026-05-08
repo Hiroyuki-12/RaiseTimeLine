@@ -26,10 +26,11 @@ export default function Sidebar({ displayName, username, onOpenPostModal, onLogo
           <span style={styles.navIcon}>🏠</span>
           <span style={styles.navLabel}>ホーム</span>
         </div>
-        <div style={{ ...styles.navItem, opacity: 0.4, cursor: 'not-allowed' }}>
+        {/* 検索ページへのリンク */}
+        <Link to="/search" style={{ ...styles.navItem, textDecoration: 'none', color: 'inherit' }}>
           <span style={styles.navIcon}>🔍</span>
           <span style={styles.navLabel}>検索</span>
-        </div>
+        </Link>
         {/* プロフィールナビアイテム: 自分のプロフィールページへ遷移する */}
         <Link to={`/users/${username}`} style={{ ...styles.navItem, textDecoration: 'none', color: 'inherit' }}>
           <span style={styles.navIcon}>👤</span>
@@ -61,18 +62,39 @@ export default function Sidebar({ displayName, username, onOpenPostModal, onLogo
 }
 
 /**
- * ユーザー名からカラーアバター（イニシャル丸）を生成するコンポーネント。
- * username の文字コードをハッシュして色を決定する。
+ * ユーザーアバターコンポーネント。
+ * avatarUrl がある場合はプロフィール画像（S3 の URL）を表示する。
+ * avatarUrl がない場合は username のハッシュで色を決めたイニシャル丸にフォールバックする。
  */
 export function Avatar({
   displayName,
   username,
+  avatarUrl,
   size = 40,
 }: {
   displayName: string
   username: string
+  /** S3 に保存されたプロフィール画像 URL（未設定時は null → イニシャルで代替） */
+  avatarUrl?: string | null
   size?: number
 }) {
+  // プロフィール画像がある場合はそちらを表示する
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={`${displayName}のアバター`}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          objectFit: 'cover',
+          flexShrink: 0,
+        }}
+      />
+    )
+  }
+
   const colors = ['#1d9bf0', '#7856ff', '#00ba7c', '#ff7a00', '#f4212e', '#ff6b9d']
   // username の各文字コードの合計で色インデックスを決める
   const colorIndex =

@@ -3,16 +3,21 @@ package com.raisetimeline.user;
 import com.raisetimeline.post.dto.PostResponse;
 import com.raisetimeline.user.dto.UpdateProfileRequest;
 import com.raisetimeline.user.dto.UserProfileResponse;
+import com.raisetimeline.user.dto.UserSummary;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * ユーザープロフィールに関する HTTP リクエストを受け付けるコントローラー。 SecurityConfig の anyRequest().authenticated() により、
@@ -27,6 +32,37 @@ public class UserController {
     /** コンストラクタ。Spring が UserService を自動的に注入する。 */
     public UserController(UserService userService) {
         this.userService = userService;
+    }
+
+    /**
+     * ユーザー検索エンドポイント。 GET /api/users/search?q=キーワード ユーザー名の部分一致で検索し、isFollowing フラグ付きで返す。
+     *
+     * <p>注意: このメソッドは /{username} より先に宣言することで Spring MVC がリテラルパスを優先してマッチさせる。 /api/users/search を
+     * {username} として解釈してしまうパス競合を防ぐ。
+     *
+     * @param q 検索キーワード（1文字以上）
+     * @return 200 OK + UserSummary のリスト（最大 20 件）
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<UserSummary>> searchUsers(@RequestParam String q) {
+        String email =
+                (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(userService.searchUsers(q, email));
+    }
+
+    /**
+     * アバター画像アップロードエンドポイント。 POST /api/users/me/avatar multipart/form-data でファイルを受け取り、S3
+     * に保存してプロフィールを返す。
+     *
+     * @param file リクエストの "file" フィールドに添付された画像ファイル（JPEG または PNG、2MB 以下）
+     * @return 200 OK + 更新後の UserProfileResponse
+     */
+    @PostMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserProfileResponse> uploadAvatar(
+            @RequestParam("file") MultipartFile file) {
+        String email =
+                (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(userService.uploadAvatar(file, email));
     }
 
     /**

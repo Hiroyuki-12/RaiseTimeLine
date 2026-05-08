@@ -127,7 +127,12 @@ export default function PostCard({
     <div style={styles.card}>
       {/* 左カラム: アバター（クリックでプロフィールページへ遷移） */}
       <Link to={`/users/${post.authorUsername}`} style={{ flexShrink: 0 }}>
-        <Avatar displayName={post.authorDisplayName} username={post.authorUsername} size={42} />
+        <Avatar
+          displayName={post.authorDisplayName}
+          username={post.authorUsername}
+          avatarUrl={post.authorAvatarUrl}
+          size={42}
+        />
       </Link>
 
       {/* 右カラム: ヘッダー・本文・フッター */}
@@ -168,7 +173,7 @@ export default function PostCard({
           )}
         </div>
 
-        {/* 本文: 通常表示 or 編集モード */}
+        {/* 本文: 通常表示 or 編集モード。通常表示時は添付画像も表示する */}
         {isEditing ? (
           <div>
             <textarea
@@ -201,7 +206,18 @@ export default function PostCard({
             </div>
           </div>
         ) : (
-          <p style={styles.content}>{post.content}</p>
+          <>
+            <p style={styles.content}>{post.content}</p>
+            {/* 添付画像があれば表示する */}
+            {post.imageUrl && (
+              <img
+                src={post.imageUrl}
+                alt="投稿画像"
+                style={styles.postImage}
+                loading="lazy"
+              />
+            )}
+          </>
         )}
 
         {/* フッター: いいねボタン・コメント数 */}
@@ -374,5 +390,13 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     color: '#f4212e',
     margin: '4px 0 0',
+  },
+  postImage: {
+    width: '100%',
+    borderRadius: 12,
+    marginTop: 8,
+    maxHeight: 400,
+    objectFit: 'cover' as const,
+    display: 'block',
   },
 }

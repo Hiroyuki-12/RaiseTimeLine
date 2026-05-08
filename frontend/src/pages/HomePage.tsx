@@ -46,20 +46,23 @@ export default function HomePage() {
   // モーダルの状態
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // タブの状態（フォロー中は未実装のため全員固定）
-  const [activeTab] = useState<'all' | 'following'>('all')
+  // タブの状態（全員 or フォロー中）
+  const [activeTab, setActiveTab] = useState<'all' | 'following'>('all')
 
   // 無限スクロールのセンター要素
   const sentinelRef = useRef<HTMLDivElement>(null)
 
   // --------- タイムライン取得 ---------
 
-  /** 初回のタイムライン取得。ポーリング基準点もここでセットする。 */
-  const loadInitialTimeline = async () => {
+  /**
+   * 初回のタイムライン取得。ポーリング基準点もここでセットする。
+   * tab を引数で受け取ることでタブ切り替え時にも同じ関数を使い回せる。
+   */
+  const loadInitialTimeline = async (tab: 'all' | 'following' = 'all') => {
     try {
       const now = new Date().toISOString()
       fetchedAtRef.current = now
-      const data = await fetchTimeline(0, PAGE_SIZE)
+      const data = await fetchTimeline(0, PAGE_SIZE, tab)
       setPosts(data)
       setPage(0)
       setHasMore(data.length === PAGE_SIZE)
@@ -98,13 +101,13 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /** 次ページを追加取得する（無限スクロール用）。 */
+  /** 次ページを追加取得する（無限スクロール用）。activeTab を参照してタイムライン種別を維持する。 */
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) return
     setIsLoadingMore(true)
     try {
       const nextPage = page + 1
-      const data = await fetchTimeline(nextPage, PAGE_SIZE)
+      const data = await fetchTimeline(nextPage, PAGE_SIZE, activeTab)
       setPosts((prev) => {
         const existingIds = new Set(prev.map((p) => p.id))
         return [...prev, ...data.filter((p) => !existingIds.has(p.id))]
@@ -116,7 +119,7 @@ export default function HomePage() {
     } finally {
       setIsLoadingMore(false)
     }
-  }, [isLoadingMore, hasMore, page])
+  }, [isLoadingMore, hasMore, page, activeTab])
 
   // --------- 無限スクロール（Intersection Observer） ---------
 
@@ -168,7 +171,18 @@ export default function HomePage() {
     setPosts([])
     setPage(0)
     setHasMore(true)
-    await loadInitialTimeline()
+    await loadInitialTimeline(activeTab)
+  }
+
+  /** タブを切り替えてタイムラインをリセット・再取得する。 */
+  const handleTabChange = async (tab: 'all' | 'following') => {
+    if (tab === activeTab) return
+    setActiveTab(tab)
+    setNewCount(0)
+    setPosts([])
+    setPage(0)
+    setHasMore(true)
+    await loadInitialTimeline(tab)
   }
 
   const handlePostCreated = (post: Post) => {
@@ -234,14 +248,21 @@ export default function HomePage() {
           <h2 style={styles.pageTitle}>ホーム</h2>
         </div>
 
-        {/* タブ: 全員 / フォロー中 */}
+        {/* タブ: 全員 / フォロー中（クリックで切り替え） */}
         <div style={styles.tabs}>
-          <div style={{ ...styles.tab, ...(activeTab === 'all' ? styles.tabActive : {}) }}>
+          <div
+            style={{ ...styles.tab, ...(activeTab === 'all' ? styles.tabActive : {}) }}
+            onClick={() => handleTabChange('all')}
+            role="tab"
+            aria-selected={activeTab === 'all'}
+          >
             全員
           </div>
           <div
-            style={{ ...styles.tab, opacity: 0.4, cursor: 'not-allowed' }}
-            title="フォロー機能は今後実装予定"
+            style={{ ...styles.tab, ...(activeTab === 'following' ? styles.tabActive : {}) }}
+            onClick={() => handleTabChange('following')}
+            role="tab"
+            aria-selected={activeTab === 'following'}
           >
             フォロー中
           </div>
@@ -257,7 +278,11 @@ export default function HomePage() {
         {timelineError ? (
           <p style={styles.errorText}>{timelineError}</p>
         ) : posts.length === 0 ? (
-          <p style={styles.emptyText}>まだ投稿がありません。最初の投稿をしてみましょう！</p>
+          <p style={styles.emptyText}>
+            {activeTab === 'following'
+              ? 'フォロー中のユーザーの投稿がありません。誰かをフォローしてみましょう！'
+              : 'まだ投稿がありません。最初の投稿をしてみましょう！'}
+          </p>
         ) : (
           <>
             {posts.map((post) => (
