@@ -22,10 +22,10 @@ export default function Sidebar({ displayName, username, onOpenPostModal, onLogo
 
       {/* ナビゲーションメニュー */}
       <nav style={styles.nav}>
-        <div style={styles.navItem}>
+        <Link to="/home" style={{ ...styles.navItem, textDecoration: 'none', color: 'inherit' }}>
           <span style={styles.navIcon}>🏠</span>
           <span style={styles.navLabel}>ホーム</span>
-        </div>
+        </Link>
         {/* 検索ページへのリンク */}
         <Link to="/search" style={{ ...styles.navItem, textDecoration: 'none', color: 'inherit' }}>
           <span style={styles.navIcon}>🔍</span>

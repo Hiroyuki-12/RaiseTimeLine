@@ -4,7 +4,7 @@
  * アバター画像のアップロードは今回スコープ外（S3 連携未整備）。
  */
 
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { updateProfile, uploadAvatar, type UserProfile, type UpdateProfileRequest } from '../api/user'
 import { Avatar } from './Sidebar'
 
@@ -26,9 +26,8 @@ export default function ProfileEditModal({ profile, onClose, onSaved }: Props) {
   // アバター画像のプレビュー URL（選択時のみ表示する）
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 画像ファイルを選択したときのプレビュー更新処理
+  // 画像ファイルが選択されたときのプレビュー更新処理（input の change イベントから呼ばれる）
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -92,23 +91,18 @@ export default function ProfileEditModal({ profile, onClose, onSaved }: Props) {
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={styles.label}>プロフィール画像</span>
-              {/* 隠し file input に紐付けたボタンで画像選択を起動する */}
+              {/* ネイティブの <input type="file"> をそのまま表示する。
+                  隠さず素のままにすることで、どのブラウザでも確実にクリック → ファイルピッカーが開く。 */}
               <input
-                ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png"
-                style={{ display: 'none' }}
                 onChange={handleAvatarChange}
                 disabled={isSubmitting}
+                style={{
+                  fontSize: 14,
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                }}
               />
-              <button
-                type="button"
-                style={styles.avatarButton}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isSubmitting}
-              >
-                {avatarFile ? '画像を変更' : '画像をアップロード'}
-              </button>
               <span style={styles.hint}>JPEG または PNG、2MB 以下</span>
             </div>
           </div>

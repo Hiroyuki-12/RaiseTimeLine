@@ -32,7 +32,6 @@ export default function PostModal({
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const MAX_LENGTH = 280
 
@@ -54,11 +53,10 @@ export default function PostModal({
 
   if (!isOpen) return null
 
-  // 画像選択時の処理
+  // 画像選択時の処理（input の change イベントから呼ばれる）
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    // 古いプレビュー URL を解放してメモリリークを防ぐ
     if (imagePreview) URL.revokeObjectURL(imagePreview)
     setImageFile(file)
     setImagePreview(URL.createObjectURL(file))
@@ -69,7 +67,6 @@ export default function PostModal({
     if (imagePreview) URL.revokeObjectURL(imagePreview)
     setImageFile(null)
     setImagePreview(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleSubmit = async () => {
@@ -157,25 +154,22 @@ export default function PostModal({
           </div>
         </div>
 
-        {/* 画像選択ボタン（フォーター上部） */}
+        {/* 画像選択:
+            ネイティブの <input type="file"> をそのまま表示する。
+            隠さず素のままにすることで、どのブラウザでも確実にクリック → ファイルピッカーが開く。
+            見た目は「ファイルを選択」ボタンになるが、機能は最も確実。 */}
         <div style={styles.imageBar}>
-          {/* 隠しの file input に紐付けたボタンで画像選択を起動する */}
+          <span style={{ marginRight: 8, color: '#536471', fontSize: 14 }}>🖼 画像</span>
           <input
-            ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/png"
-            style={{ display: 'none' }}
             onChange={handleImageChange}
             disabled={isSubmitting}
+            style={{
+              fontSize: 14,
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+            }}
           />
-          <button
-            style={styles.imageButton}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isSubmitting}
-            title="画像を添付"
-          >
-            🖼 画像を追加
-          </button>
         </div>
 
         {/* フッター: 文字数カウンター・投稿ボタン */}
