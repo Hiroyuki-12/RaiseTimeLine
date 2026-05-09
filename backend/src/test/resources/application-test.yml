@@ -1,0 +1,48 @@
+# ============================================================
+# テスト用設定（@ActiveProfiles("test") を付けたテストで読み込まれる）
+#
+# 本番 (application.properties) は PostgreSQL を直接参照しているため、
+# テストでそのまま使うと本番開発用 DB のデータを書き換えてしまう。
+# テスト時は完全に独立した H2 インメモリ DB を使い、
+# 本番マイグレーション (Flyway) を H2 にもそのまま適用することで
+# テーブル定義の食い違いを防ぐ。
+# ============================================================
+
+spring:
+  # --- データソース: H2 インメモリ DB ---
+  # MODE=PostgreSQL: PostgreSQL の方言（BIGSERIAL 等）を解釈させる互換モード
+  # DB_CLOSE_DELAY=-1: テストプロセス終了までインメモリ DB を維持する
+  # DATABASE_TO_LOWER=TRUE: 識別子を小文字化（PostgreSQL の挙動に揃える）
+  datasource:
+    url: jdbc:h2:mem:raisetimeline_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+
+  # --- Flyway: 本番マイグレーションを H2 にもそのまま流す ---
+  # 本番 SQL (db/migration/V*.sql) で H2 が解釈できない構文があった場合は、
+  # マイグレーションを書き換えるか Testcontainers への切替を検討する。
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+# --- MyBatis: Mapper XML の参照先を本番と同じにする ---
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+# --- JWT: テスト専用シークレット ---
+# 本番値とは分離し、テスト用に固定値を使う（HS256 は 32 バイト以上必須）。
+app:
+  jwt:
+    secret: TestOnlySecretKeyForUnitTests_DoNotUseInProduction!!
+    expiration-ms: 900000          # 15 分
+    refresh-expiration-ms: 604800000 # 7 日
+
+# --- AWS S3: テストでは実際のアップロードを行わないためダミー値 ---
+# S3 を呼ぶテストはコンポーネントを差し替えて検証するため、ここは形式上の値のみ。
+aws:
+  s3:
+    bucket-name: test-bucket
+    region: ap-northeast-1

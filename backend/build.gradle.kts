@@ -82,10 +82,18 @@ dependencies {
     implementation("software.amazon.awssdk:s3:2.25.23")
 
     // === テスト ===
-    // Spring Boot のテストサポート（JUnit 5, MockMvc など）
+    // Spring Boot のテストサポート（JUnit 5, Mockito, AssertJ, MockMvc など）。
+    // Mockito は spring-boot-starter-test に含まれているため個別追加は不要。
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    // Spring Security のテストサポート（@WithMockUser など）
+    // Spring Security のテストサポート（@WithMockUser、@WithSecurityContext など）。
     testImplementation("org.springframework.security:spring-security-test")
+    // MyBatis のテストサポート（@MybatisTest スライステスト用）。
+    // Mapper だけを軽量に立ち上げ、組み込み DB と組み合わせて SQL の挙動を検証できる。
+    testImplementation("org.mybatis.spring.boot:mybatis-spring-boot-starter-test:4.0.0")
+    // 組み込み H2 データベース。Mapper テストで本番 PostgreSQL の代わりに使う。
+    // 本番 DB に書き込むと開発用データが汚れる/壊れるリスクがあるため、
+    // テスト時は完全にインメモリで完結させ、本番マイグレーション (Flyway) をそのまま流す方針。
+    testRuntimeOnly("com.h2database:h2")
     // JUnit 5 のテストランナー（テスト実行エンジン）
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
