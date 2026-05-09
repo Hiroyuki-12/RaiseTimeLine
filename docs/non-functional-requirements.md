@@ -42,7 +42,7 @@
 |------|------|
 | コード管理 | Git（GitHub）でバージョン管理 |
 | DB マイグレーション | Flyway によるスキーマ変更管理 |
-| ログ | Spring Boot のデフォルトログ出力（標準出力 → Docker ログ） |
+| ログ | バックエンドは構造化ログ（ECS 形式の JSON）で標準出力に出す。詳細は [logging-spec.md](logging-spec.md) を参照 |
 | デプロイ | Terraform + GitHub Releases による再現可能なデプロイ |
 
 ## 互換性
