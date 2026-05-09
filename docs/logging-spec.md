@@ -86,7 +86,7 @@ ECS（Elastic Common Schema）に準拠したフィールド名を使用する�
 | フィールド | 型 | 必須 | 内容 | 付与箇所 |
 |------------|-----|------|------|----------|
 | `trace.id` | string | △ | リクエスト相関 ID（UUID） | リクエスト受付時のフィルタ |
-| `user.id` | number | △ | 認証済みユーザーの `users.id` | JwtAuthFilter（認証成功時） |
+| `user.id` | number | △ | 認証済みユーザーの `users.id`。現状の JWT には id クレームが無く、毎リクエストで DB を引くと負荷が増えるため **本仕様の初期実装では出力しない**。必要になったら JWT に id クレームを追加する別 Issue で対応する | （現状未対応） |
 | `user.email_masked` | string | △ | マスク済みメール（PII） | JwtAuthFilter（認証成功時） |
 | `http.request.method` | string | △ | リクエストメソッド | アクセスログフィルタ |
 | `url.path` | string | △ | リクエストパス | アクセスログフィルタ |
