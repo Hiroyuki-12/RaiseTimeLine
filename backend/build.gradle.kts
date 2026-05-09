@@ -90,10 +90,19 @@ dependencies {
     // MyBatis のテストサポート（@MybatisTest スライステスト用）。
     // Mapper だけを軽量に立ち上げ、組み込み DB と組み合わせて SQL の挙動を検証できる。
     testImplementation("org.mybatis.spring.boot:mybatis-spring-boot-starter-test:4.0.0")
-    // 組み込み H2 データベース。Mapper テストで本番 PostgreSQL の代わりに使う。
-    // 本番 DB に書き込むと開発用データが汚れる/壊れるリスクがあるため、
-    // テスト時は完全にインメモリで完結させ、本番マイグレーション (Flyway) をそのまま流す方針。
+    // 組み込み H2 データベース。コンテキストロードテスト等の軽量テストで使う。
+    // ※ Mapper テストは PostgreSQL 固有の SQL (INSERT...RETURNING, ON CONFLICT, ILIKE) を
+    //    使うため、Testcontainers で本物の PostgreSQL を起動して検証する。
     testRuntimeOnly("com.h2database:h2")
+
+    // === Testcontainers (Mapper DB 統合テスト用) ===
+    // Mapper テストでは本番 SQL (RETURNING / ON CONFLICT 等の PG 固有構文) を
+    // そのまま検証するため、Docker で本物の PostgreSQL を起動する。
+    // 本番 DB に直接書き込まないという要件は維持できる (各テスト終了時にコンテナ破棄)。
+    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+    testImplementation("org.testcontainers:postgresql:1.20.4")
+    // Spring Boot との連携 (@ServiceConnection で datasource を自動配線)
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
     // JUnit 5 のテストランナー（テスト実行エンジン）
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
