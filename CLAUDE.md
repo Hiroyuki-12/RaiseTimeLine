@@ -95,9 +95,28 @@
 | --- | --- | --- |
 | フロントエンド（型チェック） | `cd frontend && npx tsc --noEmit` | TypeScript 型エラーの検出 |
 | フロントエンド（lint） | `cd frontend && npx eslint src/` | ESLint ルール違反の検出 |
+| フロントエンド（テスト） | `cd frontend && npm test` | Vitest によるユニット / 統合テスト |
 | バックエンド（フォーマット確認） | `cd backend && ./gradlew spotlessCheck` | google-java-format 準拠チェック |
 | バックエンド（フォーマット修正） | `cd backend && ./gradlew spotlessApply` | フォーマット違反の自動修正 |
 | バックエンド（コンパイル） | `cd backend && ./gradlew compileJava` | Java コンパイルエラーの検出 |
+| バックエンド（テスト） | `cd backend && ./gradlew test` | JUnit 5 / Mockito / Testcontainers によるテスト |
+
+## テスト駆動の運用ルール（常時適用）
+
+**実装と同じ PR にテストも必ず含める**。あとから別 Issue でテストをまとめるやり方はしない。
+
+| 追加・変更した本番コード | 同じ PR に追加すべきテスト |
+| --- | --- |
+| Backend Service クラス | `*ServiceTest`（JUnit 5 + Mockito で分岐網羅） |
+| Backend Controller クラス | `*ControllerTest`（MockMvcBuilders.standaloneSetup スライス） |
+| Backend Mapper / SQL (XML) | `*MapperTest`（Testcontainers + 本番 PostgreSQL イメージ） |
+| Frontend API クライアント | `src/api/*.test.ts`（MSW でモック） |
+| Frontend コンポーネント | `src/components/*.test.tsx`（@testing-library/react） |
+| Frontend ページ | `src/pages/*.test.tsx`（MemoryRouter + MSW） |
+
+ケース導出の技法も使い分けること（同値分割 / 境界値 / デシジョンテーブル / 状態遷移 / 分岐網羅）。各テストクラス先頭に「対象・技法・ケース」をコメントで残すこと。
+
+**テストを書いていない実装変更を PR に含めてはいけない**。リファクタリングや単純な型修正など例外的なケースで省略する場合は、PR 本文に理由を明記する。
 
 ## Claude Code への指示
 
