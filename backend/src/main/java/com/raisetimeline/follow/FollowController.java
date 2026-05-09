@@ -1,6 +1,9 @@
 package com.raisetimeline.follow;
 
 import com.raisetimeline.user.dto.UserSummary;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
  * フォロー/アンフォローに関する HTTP リクエストを受け付けるコントローラー。 SecurityConfig の anyRequest().authenticated() により、
  * すべてのエンドポイントで JWT 認証が必須になる。
  */
+@Tag(name = "Follow", description = "ユーザーのフォロー・アンフォローとフォロー/フォロワー一覧")
 @RestController
 @RequestMapping("/api/users")
 public class FollowController {
@@ -32,6 +36,11 @@ public class FollowController {
      * @param userId フォローするユーザーの ID
      * @return 204 No Content
      */
+    @Operation(summary = "フォロー", description = "指定ユーザーをフォローする。自分自身は 400、重複フォローは 409 を返す。")
+    @ApiResponse(responseCode = "204", description = "フォロー成功")
+    @ApiResponse(responseCode = "400", description = "自分自身をフォローしようとした")
+    @ApiResponse(responseCode = "404", description = "ユーザーが存在しない")
+    @ApiResponse(responseCode = "409", description = "既にフォロー済み")
     @PostMapping("/{userId}/follow")
     public ResponseEntity<Void> follow(@PathVariable Long userId) {
         String email =
@@ -46,6 +55,8 @@ public class FollowController {
      * @param userId アンフォローするユーザーの ID
      * @return 204 No Content
      */
+    @Operation(summary = "アンフォロー", description = "指定ユーザーのフォローを解除する。フォローしていない場合でも冪等に 204 を返す。")
+    @ApiResponse(responseCode = "204", description = "アンフォロー成功")
     @DeleteMapping("/{userId}/follow")
     public ResponseEntity<Void> unfollow(@PathVariable Long userId) {
         String email =
@@ -60,6 +71,11 @@ public class FollowController {
      * @param username パスパラメータ（@handle 形式のユーザー名）
      * @return 200 OK + UserSummary のリスト
      */
+    @Operation(
+            summary = "フォロー中一覧取得",
+            description = "指定ユーザーがフォローしているユーザー一覧。各要素には自分視点の isFollowing が付く。")
+    @ApiResponse(responseCode = "200", description = "取得成功")
+    @ApiResponse(responseCode = "404", description = "ユーザーが存在しない")
     @GetMapping("/{username}/following")
     public ResponseEntity<List<UserSummary>> getFollowing(@PathVariable String username) {
         String email =
@@ -73,6 +89,11 @@ public class FollowController {
      * @param username パスパラメータ（@handle 形式のユーザー名）
      * @return 200 OK + UserSummary のリスト
      */
+    @Operation(
+            summary = "フォロワー一覧取得",
+            description = "指定ユーザーをフォローしているユーザー一覧。各要素には自分視点の isFollowing が付く。")
+    @ApiResponse(responseCode = "200", description = "取得成功")
+    @ApiResponse(responseCode = "404", description = "ユーザーが存在しない")
     @GetMapping("/{username}/followers")
     public ResponseEntity<List<UserSummary>> getFollowers(@PathVariable String username) {
         String email =

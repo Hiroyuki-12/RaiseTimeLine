@@ -103,6 +103,19 @@ public class SecurityConfig {
                                          */
                                         .requestMatchers("/error")
                                         .permitAll()
+                                        /*
+                                         * Swagger UI / OpenAPI 仕様 JSON は認証不要にする。
+                                         * 開発者が API 仕様書をブラウザで参照するためのエンドポイントで、
+                                         * 機密情報は含まれない（仕様の構造のみ）。
+                                         * "Authorize" ボタンから JWT を入れて UI 上で API を試行できる。
+                                         * 本番公開時に閉じたい場合は別途プロファイル分割で無効化する想定。
+                                         */
+                                        .requestMatchers(
+                                                "/v3/api-docs",
+                                                "/v3/api-docs/**",
+                                                "/swagger-ui.html",
+                                                "/swagger-ui/**")
+                                        .permitAll()
                                         // 上記以外のすべてのエンドポイントは JWT 認証が必要
                                         .anyRequest()
                                         .authenticated())
