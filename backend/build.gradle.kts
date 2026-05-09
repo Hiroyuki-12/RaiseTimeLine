@@ -68,6 +68,14 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
 
+    // === API ドキュメント生成（springdoc-openapi） ===
+    // Spring MVC のアノテーション（@RestController, @GetMapping 等）から OpenAPI 3 仕様を自動生成し、
+    // Swagger UI でブラウザから API を閲覧・試行できるようにするライブラリ。
+    // 仕様 JSON は /v3/api-docs、UI は /swagger-ui.html で公開される。
+    // v2.x は Spring Boot 3 系を主対象としているが、Spring Boot 4.0 / Spring Security 7.x でも動作する
+    // 最新の v2 系（2.8.x）を採用する。v1.x は Spring Boot 2 系専用のため不可。
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0")
+
     // === AWS S3（画像アップロード） ===
     // AWS SDK v2 の S3 クライアント。プロフィール画像・投稿画像を S3 バケットに保存するために使う。
     // v1（com.amazonaws）は Deprecated のため v2（software.amazon.awssdk）を使用する。

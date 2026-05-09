@@ -3,6 +3,9 @@ package com.raisetimeline.post;
 import com.raisetimeline.post.dto.CreatePostRequest;
 import com.raisetimeline.post.dto.PostResponse;
 import com.raisetimeline.post.dto.UpdatePostRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,6 +30,7 @@ import org.springframework.web.multipart.MultipartFile;
  * ポストの CRUD に関する HTTP リクエストを受け付けるコントローラー。 SecurityConfig の anyRequest().authenticated() により、
  * すべてのエンドポイントで JWT 認証が必須になる。
  */
+@Tag(name = "Post", description = "投稿の作成・取得・更新・削除")
 @RestController
 @RequestMapping("/api/posts")
 public class PostController {
@@ -45,6 +49,12 @@ public class PostController {
      * @param size 1 ページあたりの件数（デフォルト: 20）
      * @return 200 OK + PostResponse のリスト
      */
+    @Operation(
+            summary = "タイムライン取得",
+            description =
+                    "投稿一覧をページネーション付きで返す。timeline=following でフォロー中ユーザーの投稿のみ取得できる。"
+                            + "各投稿には isLiked / likeCount / commentCount を含む。")
+    @ApiResponse(responseCode = "200", description = "取得成功")
     @GetMapping
     public ResponseEntity<List<PostResponse>> getTimeline(
             @RequestParam(defaultValue = "0") int page,
@@ -63,6 +73,9 @@ public class PostController {
      * @param id パスパラメータ（取得するポストの ID）
      * @return 200 OK + PostResponse
      */
+    @Operation(summary = "投稿詳細取得", description = "ID 指定で投稿1件を取得する。")
+    @ApiResponse(responseCode = "200", description = "取得成功")
+    @ApiResponse(responseCode = "404", description = "投稿が存在しない")
     @GetMapping("/{id}")
     public ResponseEntity<PostResponse> getPost(@PathVariable Long id) {
         String email =
@@ -77,6 +90,10 @@ public class PostController {
      * @param since この日時より後に作成された投稿件数を返す（ISO_LOCAL_DATE_TIME 形式）
      * @return 200 OK + { "count": N }
      */
+    @Operation(
+            summary = "新着件数取得",
+            description = "since 以降に作成された投稿の件数を返す。フロントエンドが30秒ごとにポーリングして「新着あり」バッジを表示するために使う。")
+    @ApiResponse(responseCode = "200", description = "取得成功")
     @GetMapping("/new-count")
     public ResponseEntity<Map<String, Long>> getNewCount(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime since) {
@@ -94,6 +111,13 @@ public class PostController {
      * @param image 添付画像ファイル（任意、JPEG または PNG、2MB 以下）
      * @return 201 Created + 作成した PostResponse
      */
+    @Operation(
+            summary = "投稿作成",
+            description =
+                    "テキスト (1〜280文字) と任意の画像を multipart/form-data で受け取り投稿を作成する。"
+                            + "画像は JPEG / PNG・2MB 以下。S3 に保存され、URL が PostResponse.imageUrl に入る。")
+    @ApiResponse(responseCode = "201", description = "作成成功")
+    @ApiResponse(responseCode = "400", description = "バリデーションエラー（文字数超過・画像形式不正など）")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PostResponse> createPost(
             @RequestParam("content") String content,
@@ -123,6 +147,10 @@ public class PostController {
      * @param request 更新内容を含むリクエスト DTO（@Valid でバリデーション実行）
      * @return 200 OK + 更新後の PostResponse
      */
+    @Operation(summary = "投稿更新", description = "投稿者本人のみ編集可能。他ユーザーが試みた場合は 403 を返す。")
+    @ApiResponse(responseCode = "200", description = "更新成功")
+    @ApiResponse(responseCode = "403", description = "投稿者本人ではない")
+    @ApiResponse(responseCode = "404", description = "投稿が存在しない")
     @PutMapping("/{id}")
     public ResponseEntity<PostResponse> updatePost(
             @PathVariable Long id, @Valid @RequestBody UpdatePostRequest request) {
@@ -138,6 +166,10 @@ public class PostController {
      * @param id パスパラメータ（削除するポストの ID）
      * @return 204 No Content
      */
+    @Operation(summary = "投稿削除", description = "投稿者本人のみ削除可能。他ユーザーが試みた場合は 403 を返す。")
+    @ApiResponse(responseCode = "204", description = "削除成功")
+    @ApiResponse(responseCode = "403", description = "投稿者本人ではない")
+    @ApiResponse(responseCode = "404", description = "投稿が存在しない")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePost(@PathVariable Long id) {
         String email =
