@@ -179,6 +179,7 @@ npm run dev
 | 機能定義：フォロー/フォロワー | [docs/features/follow.md](docs/features/follow.md) |
 | 機能定義：ユーザー検索 | [docs/features/search.md](docs/features/search.md) |
 | 運用ルール (Claude Code 用) | [CLAUDE.md](CLAUDE.md) |
+| パフォーマンステスト (k6・手動実行) | [perf/README.md](perf/README.md) |
 
 ## 開発フロー
 
