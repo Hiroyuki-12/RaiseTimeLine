@@ -1,0 +1,3 @@
+# 型チェック用に入れる依存 (@types/k6 / typescript) は再取得可能なので追跡しない。
+# package.json / package-lock.json は追跡し、npm install で復元する。
+node_modules/

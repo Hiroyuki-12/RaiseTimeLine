@@ -1,0 +1,24 @@
+{
+  // k6 シナリオ (TypeScript) の型チェック専用設定。
+  // k6 v2 は .ts をネイティブ実行するためトランスパイル出力は不要。
+  // ここでは tsc --noEmit による型チェックとエディタ補完のためだけに使う。
+  "compilerOptions": {
+    // k6 は最新の JS ランタイム相当。最新構文をそのまま許可する。
+    "target": "esnext",
+    "module": "esnext",
+    // import 時に .ts 拡張子を明示する書き方 (k6 のローダ流儀) を許可するため bundler を使う。
+    "moduleResolution": "bundler",
+    // .ts 拡張子付きの import を tsc に許容させる (noEmit 前提でのみ可能)。
+    "allowImportingTsExtensions": true,
+    // __ENV / __VU / __ITER など k6 が注入するグローバルの型定義 (@types/k6) を読み込む。
+    "types": ["k6"],
+    // 型エラーを厳格に検出する。
+    "strict": true,
+    // 型チェックのみ。JS ファイルは出力しない (実行は k6 が直接 .ts を読む)。
+    "noEmit": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  // チェック対象は k6 シナリオ一式のみ。
+  "include": ["k6/**/*.ts"]
+}
