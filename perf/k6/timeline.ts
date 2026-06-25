@@ -15,9 +15,10 @@
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { BASE_URL } from './lib/config.js';
-import { loginRandomSeedUser, authHeaders } from './lib/auth.js';
-import { makeHandleSummary } from './lib/summary.js';
+import { Options } from 'k6/options';
+import { BASE_URL } from './lib/config.ts';
+import { loginRandomSeedUser, authHeaders } from './lib/auth.ts';
+import { makeHandleSummary } from './lib/summary.ts';
 
 // 実行後に perf/results/timeline.md / .json へレポートを出力する
 export const handleSummary = makeHandleSummary('timeline');
@@ -26,7 +27,7 @@ export const handleSummary = makeHandleSummary('timeline');
 const PEAK_VUS = parseInt(__ENV.VUS || '50', 10);
 const HOLD = __ENV.DURATION || '1m';
 
-export const options = {
+export const options: Options = {
   // ramping-vus: 段階的に VU を増減させ、徐々に負荷を上げて挙動を観察する。
   stages: [
     { duration: '30s', target: PEAK_VUS }, // ウォームアップ (0→ピーク)
@@ -89,4 +90,4 @@ export default function () {
 
 // VU ごとにトークンを保持するためのグローバル変数。
 // k6 の VU は独立した JS コンテキストを持つため、これで VU 単位の状態を保てる。
-let __VU_TOKEN = null;
+let __VU_TOKEN: string | null = null;

@@ -5,7 +5,7 @@ RaiseTimeLine のバックエンド API に対する**負荷テスト一式**で
 （リリース前・DB クエリ変更時・インデックス見直し時などの回帰確認用）。
 
 - 対象: バックエンド API（ローカル環境限定）
-- ツール: [k6](https://k6.io/)（テストシナリオを JavaScript で記述）
+- ツール: [k6](https://k6.io/)（テストシナリオを **TypeScript** で記述。k6 v2 は `.ts` をネイティブ実行）
 - 非対象: CI/CD 自動実行 / フロントエンド計測 / 本番環境への負荷掛け
 
 ---
@@ -14,17 +14,21 @@ RaiseTimeLine のバックエンド API に対する**負荷テスト一式**で
 
 ```
 perf/
+├── package.json        # 型チェック用の依存（@types/k6 / typescript）と npm スクリプト
+├── tsconfig.json       # tsc --noEmit による型チェック設定
+├── run.sh              # k6 実行ラッパー（Web ダッシュボードを自動有効化）
 ├── seed/
 │   ├── seed.sql        # 大量テストデータ投入 SQL（TRUNCATE してから投入）
 │   └── run-seed.sh     # ローカル DB へ seed.sql を流すラッパー
 └── k6/
     ├── lib/
-    │   ├── config.js   # BASE_URL / ユーザー数などの設定（環境変数で上書き可）
-    │   └── auth.js     # ログインして JWT を取得する共通関数
-    ├── smoke.js        # 疎通確認（1 VU / 30s）
-    ├── timeline.js     # 主シナリオ: タイムライン取得（all / following）
-    ├── post-create.js  # 投稿作成（content のみ）
-    └── browse.js       # 閲覧系の混在（詳細 + コメント + 検索）
+    │   ├── config.ts   # BASE_URL / ユーザー数などの設定（環境変数で上書き可）
+    │   ├── auth.ts     # ログインして JWT を取得する共通関数
+    │   └── summary.ts  # 実行後に md / json レポートを生成する handleSummary
+    ├── smoke.ts        # 疎通確認（1 VU / 30s）
+    ├── timeline.ts     # 主シナリオ: タイムライン取得（all / following）
+    ├── post-create.ts  # 投稿作成（content のみ。作成した投稿は同 iteration 内で自動削除）
+    └── browse.ts       # 閲覧系の混在（詳細 + コメント + 検索）
 ```
 
 ---
@@ -37,8 +41,18 @@ perf/
 # macOS
 brew install k6
 
-# 確認
+# 確認（v2 以上なら .ts をネイティブ実行できる）
 k6 version
+```
+
+### 1.5. 型チェック用の依存インストール（任意・初回のみ）
+
+シナリオは TypeScript で記述しています。実行（`k6 run`）だけなら不要ですが、
+型チェックやエディタ補完を使う場合は `perf/` で依存をインストールします。
+
+```bash
+cd perf && npm install
+npm run typecheck   # tsc --noEmit。型エラーがあればここで検出される
 ```
 
 ### 2. DB・バックエンドの起動（規定ポート厳守）
@@ -89,21 +103,28 @@ N_USERS=1000 N_POSTS=100000 bash perf/seed/run-seed.sh
 ### Step 2. 疎通確認
 
 ```bash
-k6 run perf/k6/smoke.js
+bash perf/run.sh smoke
 ```
 
 全チェックが green になれば、ログイン（= シードのパスワードハッシュ）と
 主要 GET API が正常に動いています。
 
+`run.sh` は **k6 の Web ダッシュボードを自動で有効化**するラッパーです
+（実行中は http://127.0.0.1:5665 でグラフをリアルタイム表示、終了時に HTML を出力）。
+ダッシュボード不要なら素の `k6 run perf/k6/smoke.ts` でも実行できます。
+
 ### Step 3. 各シナリオ実行
 
 ```bash
-k6 run perf/k6/timeline.js      # 主シナリオ
-k6 run perf/k6/post-create.js
-k6 run perf/k6/browse.js
+bash perf/run.sh timeline       # 主シナリオ
+bash perf/run.sh post-create
+bash perf/run.sh browse
 
-# 負荷を上げる例（VU 数・維持時間を上書き）
-k6 run -e VUS=100 -e DURATION=5m perf/k6/timeline.js
+# 負荷を上げる例（VU 数・維持時間を上書き。run.sh は環境変数をそのまま尊重する）
+VUS=100 DURATION=5m bash perf/run.sh timeline
+
+# npm スクリプト経由でも実行できる（cd perf 後）
+cd perf && npm run perf:timeline
 ```
 
 主な上書き用環境変数:
@@ -119,30 +140,25 @@ k6 run -e VUS=100 -e DURATION=5m perf/k6/timeline.js
 
 ## レポート出力
 
-各シナリオは実行後に `perf/results/` へレポートを自動出力します
-（`perf/results/` の中身は実行ごとに変わる成果物なので git 追跡対象外）。
+`bash perf/run.sh <シナリオ名>` で実行すると、`perf/results/` に 3 種類のレポートが
+自動出力されます（`perf/results/` の中身は実行ごとに変わる成果物なので git 追跡対象外）。
 
-| ファイル | 内容 |
+| 出力 | 内容 |
 | --- | --- |
-| `perf/results/<シナリオ名>.md` | 人が読む Markdown レポート（総合判定・p95・しきい値判定・エンドポイント別） |
+| **実行中** http://127.0.0.1:5665 | 時系列グラフ（p95 推移・リクエスト数・VU 数など）をブラウザでリアルタイム表示 |
+| `perf/results/<シナリオ名>.html` | **グラフ付き HTML レポート**（終了後にブラウザで開いて確認） |
+| `perf/results/<シナリオ名>.md` | 人が読む Markdown サマリ（総合判定・p95・しきい値判定・エンドポイント別） |
 | `perf/results/<シナリオ名>.json` | k6 の生データ（過去結果との差分比較・機械処理用） |
 
 ```bash
-k6 run perf/k6/timeline.js
-cat perf/results/timeline.md   # 結果レポートを確認
+bash perf/run.sh timeline
+open perf/results/timeline.html   # グラフ付きレポートをブラウザで開く（macOS）
+cat  perf/results/timeline.md     # テキストの合否サマリを確認
 ```
 
-### グラフ付き HTML レポート（任意）
-
-k6 標準の Web ダッシュボード機能で、時系列グラフ付きの HTML レポートも出せます。
-
-```bash
-# 実行中はブラウザで http://127.0.0.1:5665 を開くとリアルタイム表示。
-# 終了時に HTML ファイルとして書き出す。
-K6_WEB_DASHBOARD=true \
-K6_WEB_DASHBOARD_EXPORT=perf/results/timeline.html \
-  k6 run perf/k6/timeline.js
-```
+> HTML / リアルタイム表示は `run.sh` が環境変数（`K6_WEB_DASHBOARD` ほか）で
+> 自動有効化しています。素の `k6 run perf/k6/timeline.ts` で実行した場合は
+> md / json のみ出力され、グラフ付き HTML は生成されません。
 
 ## 結果の読み方
 
@@ -166,7 +182,7 @@ k6 実行後のサマリで特に見るべき指標:
 | post-create | `p95 < 700ms`, 失敗率 `< 1%` |
 | browse | `p95 < 600ms`（各 API）, 失敗率 `< 1%` |
 
-これらは初期値です。初回計測の実測に合わせて各 `.js` の `thresholds` を
+これらは初期値です。初回計測の実測に合わせて各 `.ts` の `thresholds` を
 チューニングしてください。
 
 ---
@@ -204,5 +220,6 @@ LIMIT 20 OFFSET 0;
 - アクセストークンの有効期限は **15 分**。各シナリオは VU ごとに 1 回ログインして
   トークンを使い回すため、テスト時間は 15 分以内に収めてください
   （それ以上の長時間試験では再ログイン処理の追加が必要）。
-- `post-create.js` は実データを INSERT します。多用するとデータが増えるので、
-  必要に応じて Step 1 のシード再投入でリセットしてください。
+- `post-create.ts` は実データを INSERT しますが、**作成した投稿は同じイテレーション内で
+  `DELETE /api/posts/{id}` により自動削除される**ため、テストデータは蓄積しません
+  （何度実行しても DB に負荷テスト投稿が残りません）。

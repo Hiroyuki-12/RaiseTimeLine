@@ -12,14 +12,15 @@
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { BASE_URL } from './lib/config.js';
-import { loginRandomSeedUser, authHeaders } from './lib/auth.js';
-import { makeHandleSummary } from './lib/summary.js';
+import { Options } from 'k6/options';
+import { BASE_URL } from './lib/config.ts';
+import { loginRandomSeedUser, authHeaders } from './lib/auth.ts';
+import { makeHandleSummary } from './lib/summary.ts';
 
 // 実行後に perf/results/smoke.md / .json へレポートを出力する
 export const handleSummary = makeHandleSummary('smoke');
 
-export const options = {
+export const options: Options = {
   vus: 1, // 仮想ユーザー 1 人
   duration: '30s',
   thresholds: {
@@ -48,9 +49,11 @@ export default function () {
   check(timeline, { 'timeline status 200': (r) => r.status === 200 });
 
   // 3) 取得できた投稿の 1 件目で「投稿詳細」と「コメント一覧」を確認
-  let postId = null;
+  let postId: number | null = null;
   try {
-    const posts = timeline.json();
+    // timeline.json() は JSONValue 型なので、配列であることを確認してから
+    // 投稿オブジェクト ({ id, ... }) として id を取り出す。
+    const posts = timeline.json() as Array<{ id: number }>;
     if (Array.isArray(posts) && posts.length > 0) {
       postId = posts[0].id;
     }

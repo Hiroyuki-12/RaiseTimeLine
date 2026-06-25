@@ -8,11 +8,12 @@
 
 import http from 'k6/http';
 import { check } from 'k6';
-import { BASE_URL, SEED_PASSWORD, randomUserIndex, emailForIndex } from './config.js';
+import { BASE_URL, SEED_PASSWORD, randomUserIndex, emailForIndex } from './config.ts';
 
 // 指定したメールアドレスでログインし、accessToken を返す。
 // レスポンス (AuthResponse) は { accessToken, userId, username, displayName }。
-export function login(email, password) {
+// ログイン失敗時は null を返すので、戻り値は string | null。
+export function login(email: string, password: string): string | null {
   const res = http.post(
     `${BASE_URL}/api/auth/login`,
     JSON.stringify({ email, password }),
@@ -38,19 +39,21 @@ export function login(email, password) {
   if (!ok) {
     return null;
   }
-  return res.json('accessToken');
+  // res.json('accessToken') の戻り値は JSONValue 型なので、上の check で
+  // string であることを確認済みのうえで string として扱う。
+  return res.json('accessToken') as string;
 }
 
 // ランダムなシードユーザーでログインして accessToken を返す。
 // 各 VU (仮想ユーザー) が別々のユーザーとしてアクセスし、負荷を分散させる。
-export function loginRandomSeedUser() {
+export function loginRandomSeedUser(): string | null {
   const email = emailForIndex(randomUserIndex());
   return login(email, SEED_PASSWORD);
 }
 
 // accessToken から Authorization ヘッダーを組み立てる。
 // 認証必須 API を叩くときに params.headers として渡す。
-export function authHeaders(token) {
+export function authHeaders(token: string): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,
   };

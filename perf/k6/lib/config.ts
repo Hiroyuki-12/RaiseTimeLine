@@ -20,12 +20,12 @@ export const SEED_PASSWORD = __ENV.SEED_PASSWORD || 'Password123';
 
 // 1..SEED_USER_COUNT の範囲でランダムな整数を返す。
 // ログインするユーザーをばらけさせ、特定ユーザーへの偏りを避けるため。
-export function randomUserIndex() {
+export function randomUserIndex(): number {
   return Math.floor(Math.random() * SEED_USER_COUNT) + 1;
 }
 
 // インデックスから loaduserN のメールアドレスを組み立てる。
 // seed.sql の命名規則 (loaduser1@example.com ...) と一致させている。
-export function emailForIndex(index) {
+export function emailForIndex(index: number): string {
   return `loaduser${index}@example.com`;
 }
