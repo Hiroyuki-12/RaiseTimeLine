@@ -67,13 +67,15 @@ describe('ConfirmModal', () => {
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
-  it('オーバーレイクリックで onCancel が呼ばれる (誤操作防止)', async () => {
+  it('背景の「閉じる」ボタンクリックで onCancel が呼ばれる (誤操作防止)', async () => {
+    // 背景クリックでの「閉じる」は、キーボード操作可能な全画面 button（aria-label="閉じる"）が担う。
+    // div + onClick だとキーボードで閉じられずアクセシビリティ違反になるため button にしている。
     const onCancel = vi.fn()
     render(
       <ConfirmModal isOpen={true} message="m" onConfirm={vi.fn()} onCancel={onCancel} />
     )
 
-    await userEvent.click(screen.getByRole('dialog'))
+    await userEvent.click(screen.getByRole('button', { name: '閉じる' }))
 
     expect(onCancel).toHaveBeenCalled()
   })

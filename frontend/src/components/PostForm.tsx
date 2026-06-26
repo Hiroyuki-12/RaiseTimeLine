@@ -60,7 +60,7 @@ export default function PostForm({ onPostCreated }: Props) {
         <span
           style={{
             ...styles.counter,
-            color: isOverLimit ? '#f4212e' : remaining <= 20 ? '#ffa500' : '#536471',
+            color: isOverLimit ? '#d61f2b' : remaining <= 20 ? '#ffa500' : '#536471',
           }}
         >
           {remaining}
@@ -116,12 +116,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   error: {
     fontSize: 13,
-    color: '#f4212e',
+    color: '#d61f2b',
     flex: 1,
   },
   button: {
     padding: '8px 20px',
-    background: '#1d9bf0',
+    background: '#1170b8',
     color: '#ffffff',
     border: 'none',
     borderRadius: 9999,

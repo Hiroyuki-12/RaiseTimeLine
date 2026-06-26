@@ -111,7 +111,7 @@ const styles: Record<string, React.CSSProperties> = {
   logo: {
     fontSize: 28,
     fontWeight: 900,
-    color: '#1d9bf0',
+    color: '#1170b8',
     textAlign: 'center',
     marginBottom: 24,
     letterSpacing: -1,
@@ -143,7 +143,7 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: 'border-box',
   },
   errorText: {
-    color: '#f4212e',
+    color: '#d61f2b',
     fontSize: 13,
     marginBottom: 12,
   },
@@ -151,7 +151,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'block',
     width: '100%',
     padding: '14px',
-    background: '#1d9bf0',
+    background: '#1170b8',
     color: 'white',
     border: 'none',
     borderRadius: 9999,
@@ -167,7 +167,10 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
   },
   link: {
-    color: '#1d9bf0',
-    textDecoration: 'none',
+    color: '#1170b8',
+    // 周囲の文章中に置かれるリンクは、色だけでなく下線でも区別できるようにする。
+    // 色だけに頼ると色覚特性のあるユーザーがリンクと地の文を見分けられない（WCAG: link-in-text-block）。
+    textDecoration: 'underline',
+    fontWeight: 700,
   },
 }

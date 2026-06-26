@@ -95,7 +95,7 @@ export function Avatar({
     )
   }
 
-  const colors = ['#1d9bf0', '#7856ff', '#00ba7c', '#ff7a00', '#f4212e', '#ff6b9d']
+  const colors = ['#1170b8', '#7856ff', '#00ba7c', '#ff7a00', '#d61f2b', '#ff6b9d']
   // username の各文字コードの合計で色インデックスを決める
   const colorIndex =
     username.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % colors.length
@@ -140,7 +140,7 @@ const styles: Record<string, React.CSSProperties> = {
   logo: {
     fontSize: 28,
     fontWeight: 900,
-    color: '#1d9bf0',
+    color: '#1170b8',
     letterSpacing: -1,
     marginBottom: 24,
     paddingLeft: 8,
@@ -173,7 +173,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   postButton: {
     padding: '14px 0',
-    background: '#1d9bf0',
+    background: '#1170b8',
     color: '#ffffff',
     border: 'none',
     borderRadius: 9999,
@@ -210,8 +210,8 @@ const styles: Record<string, React.CSSProperties> = {
   logoutButton: {
     padding: '8px 0',
     background: 'transparent',
-    color: '#f4212e',
-    border: '1px solid #f4212e',
+    color: '#d61f2b',
+    border: '1px solid #d61f2b',
     borderRadius: 9999,
     fontSize: 13,
     fontWeight: 700,

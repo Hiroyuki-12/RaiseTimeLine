@@ -271,7 +271,7 @@ export default function PostDetailPage() {
             <button
               style={{
                 ...styles.likeButton,
-                color: localLiked ? '#f4212e' : '#536471',
+                color: localLiked ? '#d61f2b' : '#536471',
               }}
               onClick={handleLikeToggle}
               disabled={isLiking}
@@ -304,7 +304,7 @@ export default function PostDetailPage() {
               ...styles.charCount,
               color:
                 isOverLimit
-                  ? '#f4212e'
+                  ? '#d61f2b'
                   : newContent.length > MAX_LENGTH - 20
                     ? '#ff7a00'
                     : '#536471',
@@ -476,7 +476,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     fontSize: 16,
     cursor: 'pointer',
-    color: '#1d9bf0',
+    color: '#1170b8',
     padding: '4px 8px',
     borderRadius: 4,
   },
@@ -591,7 +591,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   submitButton: {
     padding: '8px 20px',
-    background: '#1d9bf0',
+    background: '#1170b8',
     color: '#ffffff',
     border: 'none',
     borderRadius: 9999,
@@ -688,7 +688,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   saveButton: {
     padding: '6px 16px',
-    background: '#1d9bf0',
+    background: '#1170b8',
     color: '#ffffff',
     border: 'none',
     borderRadius: 9999,
@@ -709,7 +709,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   error: {
     fontSize: 13,
-    color: '#f4212e',
+    color: '#d61f2b',
     margin: '4px 0 0',
   },
 }

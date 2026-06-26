@@ -130,8 +130,8 @@ export default function FollowListPage() {
           <button
             style={{
               ...styles.tab,
-              borderBottom: activeTab === 'following' ? '2px solid #1d9bf0' : '2px solid transparent',
-              color: activeTab === 'following' ? '#1d9bf0' : '#536471',
+              borderBottom: activeTab === 'following' ? '2px solid #1170b8' : '2px solid transparent',
+              color: activeTab === 'following' ? '#1170b8' : '#536471',
             }}
             onClick={() => handleTabChange('following')}
           >
@@ -140,8 +140,8 @@ export default function FollowListPage() {
           <button
             style={{
               ...styles.tab,
-              borderBottom: activeTab === 'followers' ? '2px solid #1d9bf0' : '2px solid transparent',
-              color: activeTab === 'followers' ? '#1d9bf0' : '#536471',
+              borderBottom: activeTab === 'followers' ? '2px solid #1170b8' : '2px solid transparent',
+              color: activeTab === 'followers' ? '#1170b8' : '#536471',
             }}
             onClick={() => handleTabChange('followers')}
           >
@@ -217,7 +217,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   backLink: {
     fontSize: 14,
-    color: '#1d9bf0',
+    color: '#1170b8',
     textDecoration: 'none',
     display: 'block',
     marginBottom: 4,
