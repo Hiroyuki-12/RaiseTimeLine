@@ -38,20 +38,18 @@ test.describe('認証・セッション', () => {
     await expect(page).toHaveURL(/\/home/)
   })
 
-  // A3: 誤ったパスワードではログインできず、画面に留まる
-  // 注: バックエンドは認証失敗を 401 で返す。フロントの axios インターセプターは 401 を
-  //     「トークン失効」とみなしリフレッシュを試み、失敗すると /login へリロードする。
-  //     そのためログインフォーム上のエラーメッセージは表示されず、ログイン画面に留まる挙動になる。
-  test('A3: 誤ったパスワードはログイン失敗する（ホームに入れない）', async ({ page, api }) => {
+  // A3: 誤ったパスワードではログインできず、エラーメッセージが表示される
+  // 認証エンドポイントの 401 はリフレッシュ対象外なので、ログイン画面にエラーが表示され画面に留まる。
+  test('A3: 誤ったパスワードはエラーメッセージを表示する', async ({ page, api }) => {
     const acc = await registerAccount(api)
     await page.goto('/login')
     await page.locator('#email').fill(acc.email)
     await page.locator('#password').fill('WrongPass999')
     await page.getByRole('button', { name: 'ログイン' }).click()
 
-    // ホームへは遷移できず、ログイン画面に留まる
+    // ホームへは遷移せず、エラーメッセージ（赤字の段落）が表示される
     await expect(page).toHaveURL(/\/login/)
-    await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible()
+    await expect(page.getByText('メールアドレスまたはパスワードが正しくありません')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'ホーム' })).toHaveCount(0)
   })
 

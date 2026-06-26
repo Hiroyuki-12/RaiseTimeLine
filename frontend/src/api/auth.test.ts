@@ -7,6 +7,7 @@
 import { http, HttpResponse } from 'msw'
 import { server } from '../test/server'
 import {
+  apiClient,
   clearAuthData,
   getAccessToken,
   getUserInfo,
@@ -31,31 +32,32 @@ describe('auth API', () => {
       expect(getUserInfo()).toEqual({ userId: 1, username: 'mock', displayName: 'モック' })
     })
 
-    it('401 + リフレッシュも 401 のときは例外を伝播し、メモリがクリアされる', async () => {
-      // login のインターセプターが refresh を試みるため、refresh も失敗させる
-      // (インターセプターが clearAuthData を呼ぶことを確認)
+    it('401 のときはリフレッシュせず例外をそのまま伝播する（ログイン画面でエラー表示するため）', async () => {
+      // ログイン失敗の 401 は「資格情報が誤り」を意味するので、トークンリフレッシュの対象外。
+      // refresh が呼ばれていないこと（=リダイレクトでエラーが消えないこと）を確認する。
+      let refreshCalled = false
       server.use(
         http.post('/api/auth/login', () =>
-          HttpResponse.json({ message: '認証失敗' }, { status: 401 })
+          HttpResponse.json(
+            { message: 'メールアドレスまたはパスワードが正しくありません' },
+            { status: 401 }
+          )
         ),
-        http.post('/api/auth/refresh', () =>
-          HttpResponse.json({ message: 'リフレッシュ不可' }, { status: 401 })
-        )
+        http.post('/api/auth/refresh', () => {
+          refreshCalled = true
+          return HttpResponse.json({ message: 'should not be called' }, { status: 401 })
+        })
       )
-      // window.location.href への代入を抑止 (jsdom で navigation エラーになるため)
-      const originalLocation = window.location
-      Object.defineProperty(window, 'location', {
-        configurable: true,
-        value: { href: '' },
-      })
 
-      await expect(login({ email: 'a@example.com', password: 'wrong' })).rejects.toThrow()
-      expect(getAccessToken()).toBeNull()
-
-      Object.defineProperty(window, 'location', {
-        configurable: true,
-        value: originalLocation,
+      // 401 がそのまま reject され、呼び出し元（LoginPage）がメッセージを参照できる
+      await expect(login({ email: 'a@example.com', password: 'wrong' })).rejects.toMatchObject({
+        response: {
+          status: 401,
+          data: { message: 'メールアドレスまたはパスワードが正しくありません' },
+        },
       })
+      // 認証エンドポイントの 401 はリフレッシュ対象外なので refresh は呼ばれない
+      expect(refreshCalled).toBe(false)
     })
   })
 
@@ -102,6 +104,36 @@ describe('auth API', () => {
 
       expect(getAccessToken()).toBeNull()
       expect(getUserInfo()).toBeNull()
+    })
+  })
+
+  // 認証エンドポイント以外（通常の保護 API）の 401 自動リフレッシュが壊れていないことを確認する。
+  describe('レスポンスインターセプター（401 自動リフレッシュ）', () => {
+    it('認証エンドポイント以外の 401 はリフレッシュして元のリクエストを再試行する', async () => {
+      let postsCalls = 0
+      server.use(
+        // 1回目の GET /api/posts は 401（トークン失効）、refresh 後の再試行は 200 を返す
+        http.get('/api/posts', () => {
+          postsCalls += 1
+          if (postsCalls === 1) {
+            return HttpResponse.json({ message: 'expired' }, { status: 401 })
+          }
+          return HttpResponse.json([{ id: 1 }])
+        }),
+        http.post('/api/auth/refresh', () =>
+          HttpResponse.json({
+            accessToken: 'new-token',
+            userId: 1,
+            username: 'mock',
+            displayName: 'モック',
+          })
+        )
+      )
+
+      const res = await apiClient.get('/posts')
+      expect(res.status).toBe(200)
+      // 401 → refresh → リトライ の流れで 2 回呼ばれる
+      expect(postsCalls).toBe(2)
     })
   })
 })
