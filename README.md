@@ -1,5 +1,7 @@
 # RaiseTimeLine
 
+[![CI](https://github.com/Hiroyuki-12/RaiseTimeLine/actions/workflows/ci.yml/badge.svg)](https://github.com/Hiroyuki-12/RaiseTimeLine/actions/workflows/ci.yml)
+
 X（旧 Twitter）のタイムライン形式をベースにした学習目的の SNS アプリケーション。AI Engineer Course の学習課題として、要件定義から実装・AWS デプロイまでの一連の開発プロセスを経験することを目的に開発している。
 
 投稿・コメント・いいね・フォローなど基本的な SNS 機能を複数ユーザーで利用できる SPA。インプレッション数表示・リツイートは持たないシンプルな設計が特徴。
