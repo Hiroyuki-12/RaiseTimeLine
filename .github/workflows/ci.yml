@@ -86,14 +86,29 @@ jobs:
       - name: リポジトリを取得
         uses: actions/checkout@v4
 
-      - name: JDK をセットアップ
+      - name: JDK をセットアップ（21 と 25 の両方）
         uses: actions/setup-java@v4
         with:
-          # build.gradle.kts のツールチェーン（Java 25）に合わせる
-          java-version: 25
+          # 2 つの JDK を入れる。理由は次のステップのコメント参照。
+          #   - 21: Gradle デーモン本体を動かす JVM（spotless の google-java-format 用）
+          #   - 25: build.gradle.kts のツールチェーン（compileJava / test 用）
           distribution: temurin
+          java-version: |
+            21
+            25
           # Gradle の依存・ビルドキャッシュを有効化して 2 回目以降を高速化
           cache: gradle
+
+      - name: Gradle 実行環境を設定（デーモンは JDK 21・ツールチェーンに 25 を登録）
+        # spotless の google-java-format は JDK 内部 API(javac) に依存しており、
+        # Gradle デーモンを JDK 25 で動かすと NoSuchMethodError で失敗する。
+        # そこでデーモンは JDK 21 で起動し（JAVA_HOME を 21 に固定）、
+        # compileJava / test 用の Java 25 ツールチェーンは installations.paths で明示登録する。
+        # （ローカルでも既定 java=21・toolchain=25 の構成で通っており、それを CI で再現する）
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          mkdir -p ~/.gradle
+          echo "org.gradle.java.installations.paths=$JAVA_HOME_25_X64" >> ~/.gradle/gradle.properties
 
       - name: gradlew に実行権限を付与
         # チェックアウト直後はパーミッションが落ちている場合があるため明示的に付与する
