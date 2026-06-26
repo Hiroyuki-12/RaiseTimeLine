@@ -54,8 +54,11 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: 依存をインストール（lock 厳守）
-        # npm ci は package-lock.json と完全一致でインストールする（再現性のため install ではなく ci）
-        run: npm ci
+        # npm ci は package-lock.json と完全一致でインストールする（再現性のため install ではなく ci）。
+        # eslint-plugin-jsx-a11y@6.10.2 の peer は eslint <=9 だが本プロジェクトは eslint@10 を使う。
+        # package-lock.json はこの peer 競合を許容する形（legacy-peer-deps 相当）で生成されているため、
+        # CI でも同じ解決方式を明示する。これがないと npm ci が ERESOLVE で失敗する。
+        run: npm ci --legacy-peer-deps
 
       - name: ESLint（静的解析）
         run: npm run lint
@@ -184,8 +187,9 @@ jobs:
 
       - name: フロントエンドの依存をインストール
         # Playwright の webServer が npm run dev を起動するため、先に依存を入れておく必要がある。
+        # frontend ジョブと同様、eslint 周りの peer 競合を許容するため --legacy-peer-deps を付ける。
         working-directory: frontend
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: E2E の依存をインストール
         working-directory: e2e
