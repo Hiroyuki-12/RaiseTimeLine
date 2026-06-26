@@ -337,7 +337,13 @@ export default function PostDetailPage() {
           <p style={styles.emptyText}>まだ返信はありません。最初の返信を投稿しましょう！</p>
         ) : (
           comments.map((comment) => (
-            <div key={comment.id} style={styles.commentCard}>
+            // data-testid / data-comment-id は E2E が特定コメントの編集・削除ボタンを掴むための目印
+            <div
+              key={comment.id}
+              style={styles.commentCard}
+              data-testid="comment-item"
+              data-comment-id={comment.id}
+            >
               <Avatar
                 displayName={comment.authorDisplayName}
                 username={comment.authorUsername}

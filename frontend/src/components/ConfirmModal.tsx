@@ -47,7 +47,8 @@ export default function ConfirmModal({
           <button style={styles.cancelButton} onClick={onCancel}>
             キャンセル
           </button>
-          <button style={styles.confirmButton} onClick={onConfirm}>
+          {/* data-testid は E2E テストが確認モーダルの実行ボタンを掴むための目印（ラベルが削除/フォロー解除など可変なため） */}
+          <button style={styles.confirmButton} onClick={onConfirm} data-testid="confirm-accept">
             {confirmLabel}
           </button>
         </div>
