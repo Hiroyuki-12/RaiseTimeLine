@@ -81,10 +81,13 @@ export default function ProfileEditModal({ profile, onClose, onSaved }: Props) {
   }
 
   return (
-    // オーバーレイ: 背景クリックでモーダルを閉じる
-    <div style={styles.overlay} onClick={onClose} role="dialog" aria-modal="true">
-      {/* モーダル本体: クリックが親（オーバーレイ）に伝播しないようにする */}
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+    // オーバーレイ: モーダルの土台。aria-label でダイアログの名前を読み上げ可能にする
+    <div style={styles.overlay} role="dialog" aria-modal="true" aria-label="プロフィールを編集">
+      {/* 背景の閉じる領域: div + onClick はキーボード操作できずアクセシビリティ違反になるため、
+          全画面を覆う透明 button にする。マウスでも Enter/Space でも閉じられる */}
+      <button type="button" aria-label="閉じる" style={styles.backdrop} onClick={onClose} />
+      {/* モーダル本体: 背景ボタンより前面に出すため position/zIndex を付与（styles.modal 側で指定） */}
+      <div style={styles.modal}>
         <div style={styles.header}>
           <h2 style={styles.title}>プロフィールを編集</h2>
           <button style={styles.closeButton} onClick={onClose}>
@@ -123,8 +126,13 @@ export default function ProfileEditModal({ profile, onClose, onSaved }: Props) {
 
           {/* ユーザー名 */}
           <div style={styles.field}>
-            <label style={styles.label}>ユーザー名</label>
+            {/* htmlFor と input の id を一致させ、ラベルとコントロールを紐付ける。
+                これでスクリーンリーダーが入力欄の名前を読み上げ、ラベルクリックで入力にフォーカスできる */}
+            <label htmlFor="profile-username" style={styles.label}>
+              ユーザー名
+            </label>
             <input
+              id="profile-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -138,8 +146,11 @@ export default function ProfileEditModal({ profile, onClose, onSaved }: Props) {
 
           {/* 表示名 */}
           <div style={styles.field}>
-            <label style={styles.label}>表示名</label>
+            <label htmlFor="profile-displayName" style={styles.label}>
+              表示名
+            </label>
             <input
+              id="profile-displayName"
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
@@ -152,8 +163,11 @@ export default function ProfileEditModal({ profile, onClose, onSaved }: Props) {
 
           {/* 自己紹介 */}
           <div style={styles.field}>
-            <label style={styles.label}>自己紹介</label>
+            <label htmlFor="profile-bio" style={styles.label}>
+              自己紹介
+            </label>
             <textarea
+              id="profile-bio"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               style={styles.textarea}
@@ -205,7 +219,20 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     zIndex: 1000,
   },
+  // 背景の閉じるボタン: 全画面を覆う透明ボタン。見た目は出さず「閉じる」操作だけを担う
+  backdrop: {
+    position: 'absolute',
+    inset: 0,
+    background: 'transparent',
+    border: 'none',
+    padding: 0,
+    margin: 0,
+    cursor: 'default',
+  },
   modal: {
+    // 背景ボタン（position: absolute）より前面に出すため、自身も positioned + zIndex にする
+    position: 'relative',
+    zIndex: 1,
     background: '#ffffff',
     borderRadius: 16,
     padding: '24px 28px',
@@ -279,7 +306,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   error: {
     fontSize: 13,
-    color: '#f4212e',
+    color: '#d61f2b',
     margin: 0,
   },
   actions: {
@@ -317,7 +344,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   saveButton: {
     padding: '10px 24px',
-    background: '#1d9bf0',
+    background: '#1170b8',
     color: '#ffffff',
     border: 'none',
     borderRadius: 9999,

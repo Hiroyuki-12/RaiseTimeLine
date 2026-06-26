@@ -34,6 +34,12 @@ export default function SearchPage() {
   // デバウンス用タイマーの参照（クリア用）
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // 検索入力欄への参照。マウント後にプログラム的にフォーカスを当てるために使う。
+  // JSX の autoFocus 属性は、ページ遷移時に意図せずフォーカスが移って混乱を招くため
+  // アクセシビリティ上は非推奨（jsx-a11y/no-autofocus）。検索が主目的のこのページでは
+  // 入力欄にフォーカスを当てたいので、ref 経由で明示的に focus() する。
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   // セッション復元
   useEffect(() => {
     const init = async () => {
@@ -96,6 +102,13 @@ export default function SearchPage() {
     }
   }, [])
 
+  // 初期ロード完了後（検索入力欄が描画された後）に、入力欄へフォーカスを当てる。
+  // autoFocus 属性の代わりに ref.focus() を使うことで、検索ページとしての使い勝手は保ちつつ
+  // アクセシビリティ上の懸念（意図しないフォーカス移動）を避ける。
+  useEffect(() => {
+    if (!isLoading) searchInputRef.current?.focus()
+  }, [isLoading])
+
   const handleLogout = async () => {
     try {
       await logout()
@@ -139,7 +152,7 @@ export default function SearchPage() {
             onChange={(e) => handleQueryChange(e.target.value)}
             placeholder="ユーザーを検索..."
             style={styles.searchInput}
-            autoFocus
+            ref={searchInputRef}
           />
           {isSearching && <span style={styles.spinner}>⏳</span>}
         </div>
@@ -303,7 +316,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   errorText: {
     textAlign: 'center',
-    color: '#f4212e',
+    color: '#d61f2b',
     padding: 32,
     margin: 0,
   },

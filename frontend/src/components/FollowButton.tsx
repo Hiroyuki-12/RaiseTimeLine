@@ -70,8 +70,8 @@ export default function FollowButton({
             ...styles.followingButton,
             // ホバー時は赤色に変えて「フォロー解除」操作を連想させる
             background: isHovered ? '#fee2e2' : '#ffffff',
-            color: isHovered ? '#f4212e' : '#0f1419',
-            borderColor: isHovered ? '#f4212e' : '#cfd9de',
+            color: isHovered ? '#d61f2b' : '#0f1419',
+            borderColor: isHovered ? '#d61f2b' : '#cfd9de',
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}

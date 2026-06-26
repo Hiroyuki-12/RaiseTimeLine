@@ -38,10 +38,13 @@ export default function ConfirmModal({
   if (!isOpen) return null
 
   return (
-    // オーバーレイ: 背景クリックでキャンセル
-    <div style={styles.overlay} onClick={onCancel} role="dialog" aria-modal="true">
-      {/* モーダル本体: クリックイベントが親（オーバーレイ）に伝播しないようにする */}
-      <div style={styles.modal} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+    // オーバーレイ: モーダルの土台。aria-label を付けてダイアログの名前を読み上げ可能にする
+    <div style={styles.overlay} role="dialog" aria-modal="true" aria-label="確認">
+      {/* 背景の閉じる領域: div + onClick だとキーボードで操作できずアクセシビリティ違反になるため、
+          全画面を覆う透明な button にする。これでマウスクリックでも Enter/Space でも閉じられる */}
+      <button type="button" aria-label="閉じる" style={styles.backdrop} onClick={onCancel} />
+      {/* モーダル本体: 背景ボタンより前面に出すため position/zIndex を付与（styles.modal 側で指定） */}
+      <div style={styles.modal}>
         <p style={styles.message}>{message}</p>
         <div style={styles.actions}>
           <button style={styles.cancelButton} onClick={onCancel}>
@@ -67,7 +70,20 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     zIndex: 1000,
   },
+  // 背景の閉じるボタン: 全画面を覆う透明ボタン。見た目は出さず、クリック/キーボードでの「閉じる」操作だけを担う
+  backdrop: {
+    position: 'absolute',
+    inset: 0,
+    background: 'transparent',
+    border: 'none',
+    padding: 0,
+    margin: 0,
+    cursor: 'default',
+  },
   modal: {
+    // 背景ボタン（position: absolute）より前面に出すため、自身も positioned + zIndex にする
+    position: 'relative',
+    zIndex: 1,
     background: '#ffffff',
     borderRadius: 16,
     padding: '24px 28px',
@@ -101,7 +117,7 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     padding: '10px 0',
     // 削除など破壊的操作は赤色で強調する（誤操作を防ぐため）
-    background: '#f4212e',
+    background: '#d61f2b',
     border: 'none',
     borderRadius: 9999,
     fontSize: 14,

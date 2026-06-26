@@ -228,7 +228,7 @@ export default function PostCard({
             <button
               style={{
                 ...styles.reactionButton,
-                color: localLiked ? '#f4212e' : '#536471',
+                color: localLiked ? '#d61f2b' : '#536471',
               }}
               onClick={handleLikeToggle}
               disabled={isLiking}
@@ -381,7 +381,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   saveButton: {
     padding: '6px 16px',
-    background: '#1d9bf0',
+    background: '#1170b8',
     color: '#ffffff',
     border: 'none',
     borderRadius: 9999,
@@ -391,7 +391,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   error: {
     fontSize: 13,
-    color: '#f4212e',
+    color: '#d61f2b',
     margin: '4px 0 0',
   },
   postImage: {

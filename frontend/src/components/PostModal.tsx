@@ -124,8 +124,12 @@ export default function PostModal({
   }
 
   return (
-    <div style={styles.overlay} onClick={handleOverlayClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div style={styles.overlay} role="dialog" aria-modal="true" aria-label="新しい投稿">
+      {/* 背景の閉じる領域: div + onClick はキーボード操作できずアクセシビリティ違反になるため、
+          全画面を覆う透明 button にする。マウスでも Enter/Space でも閉じられる */}
+      <button type="button" aria-label="閉じる" style={styles.backdrop} onClick={handleOverlayClose} />
+      {/* モーダル本体: 背景ボタンより前面に出すため position/zIndex を付与（styles.modal 側で指定） */}
+      <div style={styles.modal}>
         {/* モーダルヘッダー */}
         <div style={styles.modalHeader}>
           <button style={styles.closeButton} onClick={handleOverlayClose}>
@@ -189,7 +193,7 @@ export default function PostModal({
           <span
             style={{
               ...styles.counter,
-              color: isOverLimit ? '#f4212e' : remaining <= 20 ? '#ffa500' : '#536471',
+              color: isOverLimit ? '#d61f2b' : remaining <= 20 ? '#ffa500' : '#536471',
             }}
           >
             {remaining}
@@ -224,7 +228,20 @@ const styles: Record<string, React.CSSProperties> = {
     paddingTop: 60,
     zIndex: 100,
   },
+  // 背景の閉じるボタン: 全画面を覆う透明ボタン。見た目は出さず「閉じる」操作だけを担う
+  backdrop: {
+    position: 'absolute',
+    inset: 0,
+    background: 'transparent',
+    border: 'none',
+    padding: 0,
+    margin: 0,
+    cursor: 'default',
+  },
   modal: {
+    // 背景ボタン（position: absolute）より前面に出すため、自身も positioned + zIndex にする
+    position: 'relative',
+    zIndex: 1,
     background: '#ffffff',
     borderRadius: 16,
     width: '100%',
@@ -278,7 +295,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   error: {
     fontSize: 13,
-    color: '#f4212e',
+    color: '#d61f2b',
     flex: 1,
   },
   counter: {
@@ -286,7 +303,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   submitButton: {
     padding: '8px 24px',
-    background: '#1d9bf0',
+    background: '#1170b8',
     color: '#ffffff',
     border: 'none',
     borderRadius: 9999,
@@ -302,7 +319,7 @@ const styles: Record<string, React.CSSProperties> = {
   imageButton: {
     background: 'transparent',
     border: 'none',
-    color: '#1d9bf0',
+    color: '#1170b8',
     fontSize: 14,
     cursor: 'pointer',
     padding: '4px 8px',

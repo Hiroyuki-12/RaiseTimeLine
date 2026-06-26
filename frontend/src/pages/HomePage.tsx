@@ -221,16 +221,12 @@ export default function HomePage() {
 
   return (
     <div style={styles.layout}>
-      {/* 新着フローティングバナー: 画面上部中央に固定表示 */}
+      {/* 新着フローティングバナー: 画面上部中央に固定表示。
+          クリック専用の div ではなく button にすることで、Tab で到達でき Enter/Space でも押せる */}
       {newCount > 0 && (
-        <div
-          style={styles.newPostBanner}
-          onClick={handleRefresh}
-          role="button"
-          tabIndex={0}
-        >
+        <button type="button" style={styles.newPostBanner} onClick={handleRefresh}>
           ↑ {newCount}件の新しい投稿を見る
-        </div>
+        </button>
       )}
 
       {/* 左サイドバー */}
@@ -248,31 +244,35 @@ export default function HomePage() {
           <h2 style={styles.pageTitle}>ホーム</h2>
         </div>
 
-        {/* タブ: 全員 / フォロー中（クリックで切り替え） */}
-        <div style={styles.tabs}>
-          <div
+        {/* タブ: 全員 / フォロー中（クリックで切り替え）。
+            role="tab" を持つ要素はキーボードフォーカス可能である必要があるため、button で実装する */}
+        <div style={styles.tabs} role="tablist">
+          <button
+            type="button"
             style={{ ...styles.tab, ...(activeTab === 'all' ? styles.tabActive : {}) }}
             onClick={() => handleTabChange('all')}
             role="tab"
             aria-selected={activeTab === 'all'}
           >
             全員
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             style={{ ...styles.tab, ...(activeTab === 'following' ? styles.tabActive : {}) }}
             onClick={() => handleTabChange('following')}
             role="tab"
             aria-selected={activeTab === 'following'}
           >
             フォロー中
-          </div>
+          </button>
         </div>
 
-        {/* コンパクト投稿欄（クリックでモーダルを開く） */}
-        <div style={styles.composeBar} onClick={() => setIsModalOpen(true)}>
+        {/* コンパクト投稿欄（クリックでモーダルを開く）。
+            クリック専用の div ではなく button にして、キーボードからも投稿モーダルを開けるようにする */}
+        <button type="button" style={styles.composeBar} onClick={() => setIsModalOpen(true)}>
           <Avatar displayName={displayName} username={username} size={42} />
           <span style={styles.composePlaceholder}>いまどうしてる？</span>
-        </div>
+        </button>
 
         {/* タイムライン */}
         {timelineError ? (
@@ -375,10 +375,13 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     color: '#536471',
     cursor: 'pointer',
+    // button 化に伴うネイティブ装飾のリセット（枠線・背景を消し、見た目を div の頃と揃える）
+    border: 'none',
+    background: 'transparent',
   },
   tabActive: {
     color: '#0f1419',
-    borderBottom: '2px solid #1d9bf0',
+    borderBottom: '2px solid #1170b8',
   },
   composeBar: {
     display: 'flex',
@@ -387,6 +390,15 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '12px 16px',
     borderBottom: '1px solid #e1e8ed',
     cursor: 'pointer',
+    // button 化に伴うリセット。幅いっぱい・左寄せにして div の頃のレイアウトを維持する
+    width: '100%',
+    border: 'none',
+    borderBottomWidth: '1px',
+    borderBottomStyle: 'solid',
+    borderBottomColor: '#e1e8ed',
+    background: 'transparent',
+    textAlign: 'left',
+    font: 'inherit',
   },
   composePlaceholder: {
     fontSize: 18,
@@ -398,7 +410,7 @@ const styles: Record<string, React.CSSProperties> = {
     top: 16,
     left: '50%',
     transform: 'translateX(-50%)',
-    background: '#1d9bf0',
+    background: '#1170b8',
     color: '#ffffff',
     padding: '10px 24px',
     borderRadius: 9999,
@@ -408,10 +420,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     zIndex: 200,
     whiteSpace: 'nowrap',
+    // button 化に伴うネイティブ枠線のリセット（背景色は上で指定済み）
+    border: 'none',
   },
   errorText: {
     textAlign: 'center',
-    color: '#f4212e',
+    color: '#d61f2b',
     padding: 32,
   },
   emptyText: {
@@ -433,8 +447,8 @@ const styles: Record<string, React.CSSProperties> = {
   loadMoreButton: {
     padding: '8px 24px',
     background: 'transparent',
-    color: '#1d9bf0',
-    border: '1px solid #1d9bf0',
+    color: '#1170b8',
+    border: '1px solid #1170b8',
     borderRadius: 9999,
     fontSize: 14,
     fontWeight: 700,

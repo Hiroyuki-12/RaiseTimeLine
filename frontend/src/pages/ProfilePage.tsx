@@ -139,7 +139,7 @@ export default function ProfilePage() {
   if (error || !profile) {
     return (
       <div style={styles.loadingContainer}>
-        <p style={{ color: '#f4212e' }}>{error ?? 'エラーが発生しました'}</p>
+        <p style={{ color: '#d61f2b' }}>{error ?? 'エラーが発生しました'}</p>
         <button onClick={() => navigate('/home')} style={styles.backButton}>
           ホームへ戻る
         </button>
@@ -269,7 +269,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   backButton: {
     padding: '8px 20px',
-    background: '#1d9bf0',
+    background: '#1170b8',
     color: '#ffffff',
     border: 'none',
     borderRadius: 9999,
