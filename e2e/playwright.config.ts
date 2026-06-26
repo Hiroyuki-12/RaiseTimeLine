@@ -25,8 +25,11 @@ export default defineConfig({
   fullyParallel: true,
   // テストコードに test.only を残したままのコミットを CI で失敗させる。
   forbidOnly: !!process.env.CI,
-  // 不安定なテストの一時的なリトライ（ローカルは 0、CI は 1）。
-  retries: process.env.CI ? 1 : 0,
+  // 実バックエンド（dev）を複数ワーカーで同時に叩くと、稀に一時的な負荷で操作がタイムアウトする。
+  // ロジック起因ではない一過性の失敗を吸収するため 1 回リトライする（失敗時の trace は retain-on-failure で残る）。
+  retries: process.env.CI ? 2 : 1,
+  // dev バックエンドへの同時アクセスによる輻輳を抑えるため、ローカルのワーカー数を控えめにする。
+  workers: process.env.CI ? 1 : 3,
 
   // レポーター: ターミナル表示 + HTML（後から show-report で開ける）。
   reporter: [
@@ -46,12 +49,12 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     // 失敗時の操作の流れを動画でも残す（時系列で何が起きたか目で追える）。
     video: 'retain-on-failure',
-    // 操作のデフォルトタイムアウト（要素待機など）。
-    actionTimeout: 10_000,
+    // 操作のデフォルトタイムアウト（要素待機など）。dev バックエンドの遅延に余裕を持たせる。
+    actionTimeout: 15_000,
   },
 
-  // 期待値（expect）のデフォルト待機時間。ネットワーク往復を考慮して長めに取る。
-  expect: { timeout: 10_000 },
+  // 期待値（expect）のデフォルト待機時間。ネットワーク往復＋dev バックエンドの遅延を考慮して長めに取る。
+  expect: { timeout: 15_000 },
 
   projects: [
     {

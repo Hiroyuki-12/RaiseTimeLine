@@ -78,8 +78,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
-    // 401 かつリトライ済みでない場合のみリフレッシュを試みる（無限ループ防止）
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // 認証エンドポイント自体（ログイン・登録・リフレッシュ）が返す 401 は「資格情報が誤り」を意味する。
+    // これらをトークン失効とみなしてリフレッシュ→失敗→/login リロードしてしまうと、
+    // ログイン画面に表示すべきエラーメッセージがリロードで消えてしまう。そのため refresh の対象外にする。
+    const requestUrl: string = originalRequest?.url ?? ''
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/register') ||
+      requestUrl.includes('/auth/refresh')
+    // 401 かつリトライ済みでなく、認証エンドポイント以外の場合のみリフレッシュを試みる（無限ループ防止）
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true
       try {
         const res = await refreshAccessToken()
