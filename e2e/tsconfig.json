@@ -1,0 +1,17 @@
+{
+  // エディタ補完と `npm run typecheck`（tsc --noEmit）用の設定。
+  // Playwright 自身は TypeScript をネイティブ実行するため、ビルド成果物は生成しない。
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["**/*.ts"]
+}

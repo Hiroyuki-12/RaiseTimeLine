@@ -124,7 +124,8 @@ export default function PostCard({
   }
 
   return (
-    <div style={styles.card}>
+    // data-testid / data-post-id は E2E テストが特定の投稿カードを一意に掴むための目印（表示には影響しない）
+    <div style={styles.card} data-testid="post-card" data-post-id={post.id}>
       {/* 左カラム: アバター（クリックでプロフィールページへ遷移） */}
       <Link to={`/users/${post.authorUsername}`} style={{ flexShrink: 0 }}>
         <Avatar
@@ -233,6 +234,8 @@ export default function PostCard({
               disabled={isLiking}
               aria-label={localLiked ? 'いいねを取り消す' : 'いいね'}
               title={localLiked ? 'いいねを取り消す' : 'いいね'}
+              // E2E テストがいいねボタンを一意に掴むための目印（コメントボタンと区別する）
+              data-testid="post-like-button"
             >
               <span style={styles.reactionIcon}>{localLiked ? '❤️' : '🤍'}</span>
               <span style={styles.reactionCount}>{localLikeCount}</span>

@@ -197,6 +197,8 @@ export default function PostModal({
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || !content.trim() || isOverLimit}
+            // E2E テストが投稿モーダルの送信ボタンを一意に掴むための目印
+            data-testid="post-submit"
             style={{
               ...styles.submitButton,
               opacity: isSubmitting || !content.trim() || isOverLimit ? 0.5 : 1,
