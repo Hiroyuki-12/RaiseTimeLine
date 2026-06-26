@@ -1,0 +1,214 @@
+# ============================================================================
+# CI ワークフロー（GitHub Actions）
+#
+# 目的:
+#   push / PR のたびに「静的解析 + テスト」を自動実行し、壊れた変更が main に
+#   入るのを防ぐ。手元の品質チェック（CLAUDE.md）と同じ内容を CI でも強制する。
+#
+# ジョブ構成（それぞれ独立マシンで並列実行される）:
+#   - frontend : ESLint + 型チェック(tsc) + Vitest（単体/結合）
+#   - backend  : Spotless(フォーマット静的解析) + compileJava + JUnit/Testcontainers
+#   - e2e      : 実 DB + 実バックエンドを起動し Playwright のシナリオ E2E を実行
+#
+# 対象外:
+#   - パフォーマンステスト（perf/ の k6・Playwright の perf.spec.ts）は CI では回さない。
+#     負荷試験は実行コストが高く、毎 push での実行に向かないため（CLAUDE.md / 各 skill 方針）。
+# ============================================================================
+name: CI
+
+# いつ動かすか。main への PR と、main への push（マージ後）で実行する。
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 同一ブランチで新しい push があったら、走行中の古い CI はキャンセルする。
+# 無駄なランナー消費を抑え、最新コミットの結果だけを見られるようにするため。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================================================
+  # フロントエンド: 静的解析（ESLint・型）+ ユニット/結合テスト（Vitest）
+  # ==========================================================================
+  frontend:
+    name: Frontend (lint / typecheck / test)
+    runs-on: ubuntu-latest
+    # frontend ディレクトリを既定の作業場所にする（毎回 cd しなくて済む）
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: Node.js をセットアップ
+        uses: actions/setup-node@v4
+        with:
+          # ローカル開発と同じ Node 22 系を使う
+          node-version: 22
+          # npm の依存キャッシュを有効化（package-lock.json を鍵にする）して 2 回目以降を高速化
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 依存をインストール（lock 厳守）
+        # npm ci は package-lock.json と完全一致でインストールする（再現性のため install ではなく ci）
+        run: npm ci
+
+      - name: ESLint（静的解析）
+        run: npm run lint
+
+      - name: 型チェック（TypeScript）
+        # tsconfig.json は project references 構成のため、ビルドモード(-b)で参照先まで型チェックする。
+        # （ルートの tsc --noEmit は files:[] のため何も検査しない点に注意）
+        run: npx tsc -b
+
+      - name: ユニット / 結合テスト（Vitest）
+        run: npm test
+
+  # ==========================================================================
+  # バックエンド: 静的解析（Spotless）+ コンパイル + テスト（JUnit/Testcontainers）
+  # ==========================================================================
+  backend:
+    name: Backend (spotless / compile / test)
+    runs-on: ubuntu-latest
+    # Testcontainers が本物の PostgreSQL を Docker で起動する。
+    # ubuntu-latest ランナーには Docker が標準搭載されているため追加設定は不要。
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: JDK をセットアップ
+        uses: actions/setup-java@v4
+        with:
+          # build.gradle.kts のツールチェーン（Java 25）に合わせる
+          java-version: 25
+          distribution: temurin
+          # Gradle の依存・ビルドキャッシュを有効化して 2 回目以降を高速化
+          cache: gradle
+
+      - name: gradlew に実行権限を付与
+        # チェックアウト直後はパーミッションが落ちている場合があるため明示的に付与する
+        run: chmod +x ./gradlew
+
+      - name: フォーマット静的解析（Spotless）
+        # google-java-format 準拠かを検査する（違反があれば失敗）
+        run: ./gradlew spotlessCheck
+
+      - name: コンパイル
+        run: ./gradlew compileJava
+
+      - name: テスト（JUnit5 / Mockito / Testcontainers）
+        run: ./gradlew test
+
+      - name: テストレポートをアーティファクト保存（失敗時の調査用）
+        # テストが落ちても結果レポートは常に残す（if: always）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-report
+          path: backend/build/reports/tests/test
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ==========================================================================
+  # E2E: 実 DB + 実バックエンド + 実フロントを貫通する Playwright シナリオテスト
+  #   - DB(5432) : compose.yaml の PostgreSQL を起動
+  #   - backend(8080) : bootJar をビルドして java -jar で起動
+  #   - frontend(5173) : Playwright の webServer 設定が npm run dev を自動起動
+  # ==========================================================================
+  e2e:
+    name: E2E (Playwright scenario)
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: JDK をセットアップ
+        uses: actions/setup-java@v4
+        with:
+          java-version: 25
+          distribution: temurin
+          cache: gradle
+
+      - name: Node.js をセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: PostgreSQL を起動（規定ポート 5432）
+        # compose.yaml の db サービスのみ起動。接続情報は application.properties の既定値と一致する。
+        run: docker compose up -d db
+
+      - name: PostgreSQL の起動完了を待機
+        # healthcheck(pg_isready) が healthy になるまで待つ。準備前に backend を起動すると接続失敗するため。
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' raisetimeline-db 2>/dev/null || echo starting)
+            if [ "$status" = "healthy" ]; then echo "DB is healthy"; exit 0; fi
+            echo "waiting for DB... ($i) status=$status"; sleep 2
+          done
+          echo "DB did not become healthy in time"; docker logs raisetimeline-db; exit 1
+
+      - name: バックエンドをビルド
+        working-directory: backend
+        run: |
+          chmod +x ./gradlew
+          # 実行可能 jar を生成（-plain.jar は依存を含まないため後で除外する）
+          ./gradlew bootJar
+
+      - name: バックエンドを起動（8080・バックグラウンド）
+        working-directory: backend
+        run: |
+          # 依存を含む boot jar（plain でない方）を選んで起動する。
+          JAR=$(ls build/libs/*.jar | grep -v plain | head -n1)
+          echo "starting backend: $JAR"
+          # ログをファイルに出しつつバックグラウンド起動。後続ステップで疎通確認する。
+          nohup java -jar "$JAR" > backend.log 2>&1 &
+
+      - name: バックエンドの起動完了を待機（8080）
+        # Flyway マイグレーション完了後に API が応答する。springdoc の /v3/api-docs を疎通確認に使う。
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/v3/api-docs > /dev/null; then
+              echo "backend is up"; exit 0
+            fi
+            echo "waiting for backend... ($i)"; sleep 2
+          done
+          echo "backend did not start in time"; cat backend/backend.log; exit 1
+
+      - name: フロントエンドの依存をインストール
+        # Playwright の webServer が npm run dev を起動するため、先に依存を入れておく必要がある。
+        working-directory: frontend
+        run: npm ci
+
+      - name: E2E の依存をインストール
+        working-directory: e2e
+        run: npm ci
+
+      - name: Playwright のブラウザを取得（Chromium）
+        # --with-deps で Chromium 実行に必要な OS ライブラリも併せて導入する
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E シナリオテストを実行（perf 除外）
+        working-directory: e2e
+        # test:scenario は auth/post/comment/social のみ実行（perf.spec.ts は含めない）
+        run: npm run test:scenario
+
+      - name: Playwright レポートをアーティファクト保存
+        # 失敗時の trace / スクショ / 動画も含め、調査用に常に保存する
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/results
+            e2e/backend.log
+          retention-days: 7
+          if-no-files-found: ignore
