@@ -68,6 +68,12 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "SPRING_DATASOURCE_USERNAME", value = var.db_username },
         { name = "AWS_S3_BUCKET_NAME", value = aws_s3_bucket.images.bucket },
         { name = "AWS_S3_REGION", value = var.region },
+        # 画像配信のベース URL。images バケットは非公開(OAC)のため直リンク S3 URL は 403 になる。
+        # backend はこの CloudFront ドメイン配下の URL を imageUrl として返す（/media/* で S3 へ届く）。
+        {
+          name  = "APP_MEDIA_BASE_URL"
+          value = "https://${aws_cloudfront_distribution.main.domain_name}"
+        },
         # 本番プロファイル。Cookie の Secure 付与など環境差をここで切り替える想定。
         { name = "SPRING_PROFILES_ACTIVE", value = var.env },
       ]
@@ -120,7 +126,11 @@ resource "aws_ecs_service" "backend" {
   }
 
   # タスク起動直後はアプリ初期化中でヘルスチェックに通らないため、猶予を与える。
-  health_check_grace_period_seconds = 60
+  # Spring Boot の起動は Fargate(0.25 vCPU) 上で実測 約85秒かかる（コンテキスト初期化＋Flyway＋Tomcat）。
+  # 猶予が起動時間より短いと、起動完了前に ALB ヘルスチェック失敗でタスクが kill され、
+  # 新リビジョンへローリング更新できず（旧タスクが残り続ける）デプロイが収束しない。
+  # そのため起動実測値に十分な余裕を持たせて 180 秒にする。
+  health_check_grace_period_seconds = 180
 
   # ALB リスナールールが先に出来てからサービスを作る（登録先が無いと失敗するため）。
   depends_on = [aws_lb_listener_rule.forward_from_cloudfront]

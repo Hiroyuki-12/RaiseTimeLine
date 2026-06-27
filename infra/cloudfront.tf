@@ -1,10 +1,11 @@
 # ==========================================================================
 # CloudFront（単一の入口 / CDN / HTTPS 終端）
 # ==========================================================================
-# 1つの CloudFront に 2 つのオリジンをぶら下げ、URL のパスで振り分ける:
+# 1つの CloudFront に 3 つのオリジンをぶら下げ、URL のパスで振り分ける:
 #   - 既定(/)     → S3（React 静的ファイル）
 #   - /api/*      → ALB（バックエンド）
-# こうして「フロントと API を同一ドメイン」にする。理由は docs/aws-architecture.md 参照
+#   - /media/*    → S3（投稿・プロフィール画像）
+# こうして「フロントと API と画像を同一ドメイン」にする。理由は docs/aws-architecture.md 参照
 # （SameSite=Lax のリフレッシュ Cookie を成立させ、フロント無改修・CORS不要にするため）。
 
 # --- OAC（Origin Access Control） ---
@@ -15,6 +16,16 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   description                       = "OAC for frontend S3 bucket"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always" # 常に署名する
+  signing_protocol                  = "sigv4"
+}
+
+# 画像バケット用の OAC。フロント用とは別に用意し、画像 S3 を非公開のまま
+# CloudFront だけに読ませる（投稿/プロフィール画像の配信に使う）。
+resource "aws_cloudfront_origin_access_control" "images" {
+  name                              = "${local.name_prefix}-images-oac"
+  description                       = "OAC for images S3 bucket"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
 }
 
@@ -44,6 +55,14 @@ resource "aws_cloudfront_distribution" "main" {
     origin_id                = "s3-frontend"
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
+  }
+
+  # ===== オリジン3: 画像 S3 =====
+  # 投稿・プロフィール画像。非公開バケットを OAC 経由で読む。
+  origin {
+    origin_id                = "s3-images"
+    domain_name              = aws_s3_bucket.images.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.images.id
   }
 
   # ===== オリジン2: バックエンド ALB =====
@@ -88,6 +107,19 @@ resource "aws_cloudfront_distribution" "main" {
     cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
     compress                 = true
+  }
+
+  # ===== 画像ビヘイビア: /media/* → S3画像（キャッシュ有効・GETのみ） =====
+  # 投稿/プロフィール画像は中身が変わらない静的アセットなのでよくキャッシュする。
+  # SPA のルート（/posts/:id, /users/:username）と衝突しないよう、画像は media/ 配下に固めている。
+  ordered_cache_behavior {
+    path_pattern           = "/media/*"
+    target_origin_id       = "s3-images"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD"]
+    cache_policy_id        = data.aws_cloudfront_cache_policy.caching_optimized.id
+    compress               = true
   }
 
   # ===== SPA フォールバック =====

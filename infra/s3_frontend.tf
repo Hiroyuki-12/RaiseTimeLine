@@ -4,8 +4,8 @@
 # npm run build の成果物(dist)を置く。直接公開はせず、CloudFront(OAC)経由でのみ読ませる。
 
 resource "aws_s3_bucket" "frontend" {
-  # フロント用バケット名。画像バケットと別物。全世界で一意にするため接頭辞を付ける。
-  bucket = "${local.name_prefix}-frontend"
+  # フロント用バケット名。画像バケットと別物。全世界で一意にするため接頭辞＋アカウントID を付ける。
+  bucket = "${local.name_prefix}-frontend-${local.account_id}"
 
   # force_destroy=true: バケット内にオブジェクト（dist のファイル群）が残っていても
   # terraform destroy でバケットごと一括削除できるようにする。
