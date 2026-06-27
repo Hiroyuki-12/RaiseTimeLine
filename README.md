@@ -72,7 +72,7 @@ RaiseTimeLine/
 - PostgreSQL 16
   - ローカル開発: Docker Compose
   - AWS デプロイ時: RDS db.t3.micro
-- AWS デプロイ: ALB + EC2 t2.micro + Nginx + RDS + S3（詳細は [docs/aws-architecture.md](docs/aws-architecture.md)）
+- AWS デプロイ: CloudFront + S3 + ECS Fargate + ALB + RDS（EC2 不使用。詳細は [docs/aws-architecture.md](docs/aws-architecture.md)）
 - IaC: Terraform 1.6+ (`infra/`)
 - 成果物配布: GitHub Releases (`make release`)
 
@@ -142,23 +142,24 @@ npm run dev
 
 ## AWS デプロイ
 
-学習目的で本アプリを AWS 上で稼働させるための IaC を `infra/` に用意している（Terraform）。
-**ALB + EC2 + RDS + S3** 構成で、HTTPS 終端を ALB で行うシンプルな設計。
+学習目的で本アプリを AWS 上で稼働させるための IaC を `infra/` に用意する（Terraform）。
+**EC2 を使わない CloudFront + S3 + ECS Fargate + ALB + RDS** 構成。フロントは S3+CloudFront で静的配信、
+バックエンドは Docker イメージ（ECR）を ECS Fargate で実行する。
 
 - 構成図 / 設計判断: [docs/aws-architecture.md](docs/aws-architecture.md)
-- 初回セットアップ・運用コマンド: [infra/README.md](infra/README.md)
+- 各サービスの入門解説（学習メモ）: [docs/aws-architecture-learning-notes.md](docs/aws-architecture-learning-notes.md)
+- 初回セットアップ・運用コマンド: [infra/README.md](infra/README.md)（Terraform 整備後に追加）
 
-主な運用コマンド（リポジトリルートの `Makefile`）:
+デプロイの流れ（概要）:
 
-| コマンド | やること |
+| 対象 | やること |
 |---|---|
-| `make release` | JAR + frontend dist を GitHub Releases に upload |
-| `make deploy` | terraform apply（初回） |
-| `make redeploy` | EC2 を作り直して新成果物を取得 |
-| `make ssh` / `make logs` / `make status` | EC2 操作・状態確認 |
-| `make destroy` | 全リソース削除（課題提出後の必須作業） |
+| バックエンド | `./gradlew bootJar` → `docker build` → ECR へ push → `aws ecs update-service --force-new-deployment` |
+| フロントエンド | `npm run build` → `aws s3 sync dist/ s3://<bucket>` → CloudFront invalidation |
+| インフラ | `terraform apply`（作成）/ `terraform destroy`（削除） |
 
-> 12 ヶ月の無料枠を超えると EC2 / RDS が課金対象。**使わなくなったら必ず `make destroy`** すること。
+> ALB と Fargate は無料枠対象外（合計 約 $25〜30/月）。RDS / CloudFront / S3 は 12 ヶ月無料枠内。
+> **使わなくなったら必ず `terraform destroy`** すること。
 
 ## ドキュメント一覧
 
@@ -171,6 +172,7 @@ npm run dev
 | 画面設計書 | [docs/screen-design.md](docs/screen-design.md) |
 | ER 図 / DB 設計 | [docs/er-diagram.md](docs/er-diagram.md) |
 | AWS インフラ構成 | [docs/aws-architecture.md](docs/aws-architecture.md) |
+| AWS 構成 学習メモ | [docs/aws-architecture-learning-notes.md](docs/aws-architecture-learning-notes.md) |
 | 技術スタック | [docs/tech-stack.md](docs/tech-stack.md) |
 | 機能定義：認証 | [docs/features/auth.md](docs/features/auth.md) |
 | 機能定義：タイムライン | [docs/features/timeline.md](docs/features/timeline.md) |
