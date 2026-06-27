@@ -1,0 +1,31 @@
+# ==========================================================================
+# terraform.tfvars のサンプル
+# ==========================================================================
+# 使い方:
+#   1. このファイルを terraform.tfvars にコピーする
+#        cp terraform.tfvars.example terraform.tfvars
+#   2. 値を自分の環境に合わせて埋める（特に機密値）
+#   3. terraform.tfvars は .gitignore 済み。絶対にコミットしないこと
+#
+# 機密値（db_password / jwt_secret）はコミットすると漏洩につながるため、
+# このサンプルにはダミー値しか書かない。
+
+# --- 基本（必要なら変更） ---
+# project = "raisetimeline"
+# env     = "prod"
+# region  = "ap-northeast-1"
+
+# --- RDS パスワード（必須・機密） ---
+# 強固なランダム文字列にすること
+db_password = "CHANGE_ME_strong_db_password"
+
+# --- JWT 署名シークレット（必須・機密） ---
+# HS256 のため 32 文字以上。例: openssl rand -base64 48 で生成
+jwt_secret = "CHANGE_ME_at_least_32_chars_long_secret_value"
+
+# --- 画像バケット名（全世界で一意にする必要あり。必要なら変更） ---
+# images_bucket_name = "raisetimeline-images-prod"
+
+# --- backend イメージ（任意） ---
+# 空なら ECR の <repo>:latest を使う。タグ固定したい場合のみ指定する。
+# backend_image = ""
