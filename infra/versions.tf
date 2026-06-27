@@ -29,10 +29,10 @@ terraform {
   #       Terraform 管理外として AWS CLI で初回手動作成する（手順は infra/README.md 参照）。
   #       未作成の状態でも `terraform validate -backend=false` は実行できる。
   backend "s3" {
-    bucket         = "raisetimeline-tfstate"   # 手動作成する state 用バケット名
-    key            = "infra/terraform.tfstate" # バケット内でのファイルパス
-    region         = "ap-northeast-1"          # state バケットのリージョン
-    dynamodb_table = "raisetimeline-tflock"    # ロック用 DynamoDB テーブル名
-    encrypt        = true                      # state を暗号化して保存する
+    bucket         = "raisetimeline-tfstate-727646480838" # 手動作成する state 用バケット名（S3 は全世界一意のため AWS アカウントID を付与）
+    key            = "infra/terraform.tfstate"            # バケット内でのファイルパス
+    region         = "ap-northeast-1"                     # state バケットのリージョン
+    dynamodb_table = "raisetimeline-tflock"               # ロック用 DynamoDB テーブル名
+    encrypt        = true                                 # state を暗号化して保存する
   }
 }

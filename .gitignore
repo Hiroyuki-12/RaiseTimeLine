@@ -17,3 +17,6 @@ e2e/playwright-report/
 *.tfvars
 !*.tfvars.example
 crash.log
+# - tfplan       : terraform plan -out の出力。再生成可能・コミット不要
+tfplan
+tfplan*

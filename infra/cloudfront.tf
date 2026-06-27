@@ -1,10 +1,11 @@
 # ==========================================================================
 # CloudFront（単一の入口 / CDN / HTTPS 終端）
 # ==========================================================================
-# 1つの CloudFront に 2 つのオリジンをぶら下げ、URL のパスで振り分ける:
+# 1つの CloudFront に 3 つのオリジンをぶら下げ、URL のパスで振り分ける:
 #   - 既定(/)     → S3（React 静的ファイル）
 #   - /api/*      → ALB（バックエンド）
-# こうして「フロントと API を同一ドメイン」にする。理由は docs/aws-architecture.md 参照
+#   - /media/*    → S3（投稿・プロフィール画像）
+# こうして「フロントと API と画像を同一ドメイン」にする。理由は docs/aws-architecture.md 参照
 # （SameSite=Lax のリフレッシュ Cookie を成立させ、フロント無改修・CORS不要にするため）。
 
 # --- OAC（Origin Access Control） ---
@@ -15,6 +16,16 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   description                       = "OAC for frontend S3 bucket"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always" # 常に署名する
+  signing_protocol                  = "sigv4"
+}
+
+# 画像バケット用の OAC。フロント用とは別に用意し、画像 S3 を非公開のまま
+# CloudFront だけに読ませる（投稿/プロフィール画像の配信に使う）。
+resource "aws_cloudfront_origin_access_control" "images" {
+  name                              = "${local.name_prefix}-images-oac"
+  description                       = "OAC for images S3 bucket"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
 }
 
@@ -44,6 +55,14 @@ resource "aws_cloudfront_distribution" "main" {
     origin_id                = "s3-frontend"
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
+  }
+
+  # ===== オリジン3: 画像 S3 =====
+  # 投稿・プロフィール画像。非公開バケットを OAC 経由で読む。
+  origin {
+    origin_id                = "s3-images"
+    domain_name              = aws_s3_bucket.images.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.images.id
   }
 
   # ===== オリジン2: バックエンド ALB =====
@@ -90,15 +109,28 @@ resource "aws_cloudfront_distribution" "main" {
     compress                 = true
   }
 
-  # ===== SPA フォールバック =====
-  # React Router は /timeline などの URL を JS 側で処理する。S3 にはそのファイルが無いため
-  # 403/404 が返る。それを index.html(200) に差し替えて、ルーティングを React に委ねる。
-  custom_error_response {
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 10
+  # ===== 画像ビヘイビア: /media/* → S3画像（キャッシュ有効・GETのみ） =====
+  # 投稿/プロフィール画像は中身が変わらない静的アセットなのでよくキャッシュする。
+  # SPA のルート（/posts/:id, /users/:username）と衝突しないよう、画像は media/ 配下に固めている。
+  ordered_cache_behavior {
+    path_pattern           = "/media/*"
+    target_origin_id       = "s3-images"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD"]
+    cache_policy_id        = data.aws_cloudfront_cache_policy.caching_optimized.id
+    compress               = true
   }
+
+  # ===== SPA フォールバック（404 のみ） =====
+  # React Router は /home などの URL を JS 側で処理する。S3 にそのファイルは無いので、
+  # 静的ファイル欠損(404)を index.html(200) に差し替えてルーティングを React に委ねる。
+  #
+  # 重要: ここで 403 を index.html に差し替えてはいけない。
+  # API(/api/*) の未認証/権限エラーは 403 を返すが、それまで index.html(200/HTML) に化けると
+  # フロントの axios が「成功」と誤認し、JSON を期待する箇所が HTML 文字列で壊れる。
+  # そのため 403 は素通しし、静的ファイル欠損は 404 で扱う
+  # （frontend バケットに ListBucket を許可し、欠損キーが 404 を返すようにしてある: s3_frontend.tf 参照）。
   custom_error_response {
     error_code            = 404
     response_code         = 200

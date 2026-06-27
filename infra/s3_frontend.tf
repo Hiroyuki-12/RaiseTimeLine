@@ -4,8 +4,8 @@
 # npm run build の成果物(dist)を置く。直接公開はせず、CloudFront(OAC)経由でのみ読ませる。
 
 resource "aws_s3_bucket" "frontend" {
-  # フロント用バケット名。画像バケットと別物。全世界で一意にするため接頭辞を付ける。
-  bucket = "${local.name_prefix}-frontend"
+  # フロント用バケット名。画像バケットと別物。全世界で一意にするため接頭辞＋アカウントID を付ける。
+  bucket = "${local.name_prefix}-frontend-${local.account_id}"
 
   # force_destroy=true: バケット内にオブジェクト（dist のファイル群）が残っていても
   # terraform destroy でバケットごと一括削除できるようにする。
@@ -53,6 +53,28 @@ data "aws_iam_policy_document" "frontend_oac" {
     }
 
     # さらに「このディストリビューションからの呼び出しのみ」に絞る（他人の CloudFront を弾く）。
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.main.arn]
+    }
+  }
+
+  # ListBucket を許可する理由:
+  # 許可が無いと、存在しないキー（SPA の /home などのディープリンク）への GET に対し
+  # S3 は「情報秘匿のため」403(AccessDenied) を返す。ListBucket を許可すると本来の 404(NoSuchKey) を返す。
+  # CloudFront 側では SPA フォールバックを「404 のみ index.html」に限定したいので、
+  # 静的ファイル欠損を 404 にしておく必要がある（API の 403 を index.html に化けさせないため）。
+  statement {
+    sid       = "AllowCloudFrontListForNotFound"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.frontend.arn]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
     condition {
       test     = "StringEquals"
       variable = "AWS:SourceArn"
