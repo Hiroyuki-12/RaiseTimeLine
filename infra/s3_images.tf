@@ -6,6 +6,12 @@
 resource "aws_s3_bucket" "images" {
   bucket = var.images_bucket_name
 
+  # force_destroy=true: バケット内に画像オブジェクト（バージョン含む）が残っていても
+  # terraform destroy でバケットごと一括削除できるようにする。
+  # 「apply → 動作確認 → すぐ destroy」という学習用途の運用を一発で通すため許容する。
+  # 本番では誤削除でデータを失うリスクがあるため false にすべき設定。
+  force_destroy = true
+
   tags = {
     Name = "${local.name_prefix}-images"
   }
