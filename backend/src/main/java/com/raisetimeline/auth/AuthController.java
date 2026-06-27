@@ -38,13 +38,21 @@ public class AuthController {
     /** リフレッシュトークンの有効期限（秒単位に変換して Cookie の Max-Age に使う） */
     private final long refreshExpirationSeconds;
 
+    /**
+     * Cookie に Secure 属性を付けるか。 Secure=true の Cookie は HTTPS でしか送信されない（盗聴対策）。 本番(HTTPS)では
+     * true、ローカル(http)では false を注入する。
+     */
+    private final boolean cookieSecure;
+
     /** コンストラクタ。Spring が AuthService を自動的に注入する。 */
     public AuthController(
             AuthService authService,
-            @Value("${app.jwt.refresh-expiration-ms}") long refreshExpirationMs) {
+            @Value("${app.jwt.refresh-expiration-ms}") long refreshExpirationMs,
+            @Value("${app.cookie.secure:false}") boolean cookieSecure) {
         this.authService = authService;
         // ミリ秒 → 秒に変換（Cookie の Max-Age は秒単位）
         this.refreshExpirationSeconds = refreshExpirationMs / 1000;
+        this.cookieSecure = cookieSecure;
     }
 
     /**
@@ -150,6 +158,9 @@ public class AuthController {
         ResponseCookie clearCookie =
                 ResponseCookie.from("refresh_token", "")
                         .httpOnly(true)
+                        // 発行時と同じ属性(secure / sameSite / path)で消さないとブラウザが別 Cookie とみなし削除されない
+                        .secure(cookieSecure)
+                        .sameSite("Lax")
                         .path("/api/auth")
                         .maxAge(0)
                         .build();
@@ -168,6 +179,8 @@ public class AuthController {
     private ResponseCookie buildRefreshTokenCookie(String token) {
         return ResponseCookie.from("refresh_token", token)
                 .httpOnly(true)
+                // 本番(HTTPS)では Secure を付け、暗号化されていない通信では Cookie を送らせない（盗聴対策）
+                .secure(cookieSecure)
                 .sameSite("Lax")
                 .path("/api/auth")
                 .maxAge(refreshExpirationSeconds)
