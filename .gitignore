@@ -5,3 +5,15 @@ e2e/node_modules/
 e2e/results/
 e2e/test-results/
 e2e/playwright-report/
+
+# Terraform（infra/）
+# - .terraform/  : プロバイダ等のキャッシュ（巨大・再生成可能）
+# - *.tfstate*   : 状態ファイル。機密を含むためコミット禁止（保管は S3 backend）
+# - *.tfvars     : DB パスワード等の機密入力。コミット禁止（.example のみ追跡）
+# ※ .terraform.lock.hcl は再現性のためあえてコミットする（無視しない）
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
