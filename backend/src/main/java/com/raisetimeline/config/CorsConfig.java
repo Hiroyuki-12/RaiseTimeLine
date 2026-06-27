@@ -1,6 +1,7 @@
 package com.raisetimeline.config;
 
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -19,6 +20,19 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class CorsConfig {
 
     /**
+     * 許可するオリジン（カンマ区切りで複数指定可）。
+     *
+     * <p>ローカル開発はフロントの http://localhost:5173 が既定。本番では CloudFront のドメイン （例:
+     * https://xxxx.cloudfront.net）を環境変数 APP_CORS_ALLOWED_ORIGINS で注入する。
+     *
+     * <p>なぜ必要か: CloudFront 配下では「同一オリジン」でもブラウザは POST 等に Origin ヘッダを付ける。 Spring の CORS
+     * フィルタは許可リストに無いオリジンを 403 で弾くため、本番ドメインを許可しないと ログイン等の API がすべて 403 になる（さらに CloudFront の SPA
+     * フォールバックで 200/HTML に化け、 フロントが JSON を期待して壊れる）。
+     */
+    @Value("${app.cors.allowed-origins}")
+    private List<String> allowedOrigins;
+
+    /**
      * CORS の許可ルールを定義した CorsConfigurationSource を Bean として登録する。 SecurityConfig でこの Bean を参照して Spring
      * Security の CORS 設定に組み込む。
      *
@@ -28,9 +42,9 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // 許可するオリジン（フロントエンドの URL）
-        // ポートルール: フロントエンドは必ず 5173 を使用する
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        // 許可するオリジン（環境ごとに app.cors.allowed-origins で設定）
+        // ローカル: http://localhost:5173 / 本番: CloudFront ドメイン
+        config.setAllowedOrigins(allowedOrigins);
 
         // 許可する HTTP メソッド
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));

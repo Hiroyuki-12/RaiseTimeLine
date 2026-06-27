@@ -122,15 +122,15 @@ resource "aws_cloudfront_distribution" "main" {
     compress               = true
   }
 
-  # ===== SPA フォールバック =====
-  # React Router は /timeline などの URL を JS 側で処理する。S3 にはそのファイルが無いため
-  # 403/404 が返る。それを index.html(200) に差し替えて、ルーティングを React に委ねる。
-  custom_error_response {
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 10
-  }
+  # ===== SPA フォールバック（404 のみ） =====
+  # React Router は /home などの URL を JS 側で処理する。S3 にそのファイルは無いので、
+  # 静的ファイル欠損(404)を index.html(200) に差し替えてルーティングを React に委ねる。
+  #
+  # 重要: ここで 403 を index.html に差し替えてはいけない。
+  # API(/api/*) の未認証/権限エラーは 403 を返すが、それまで index.html(200/HTML) に化けると
+  # フロントの axios が「成功」と誤認し、JSON を期待する箇所が HTML 文字列で壊れる。
+  # そのため 403 は素通しし、静的ファイル欠損は 404 で扱う
+  # （frontend バケットに ListBucket を許可し、欠損キーが 404 を返すようにしてある: s3_frontend.tf 参照）。
   custom_error_response {
     error_code            = 404
     response_code         = 200

@@ -59,6 +59,28 @@ data "aws_iam_policy_document" "frontend_oac" {
       values   = [aws_cloudfront_distribution.main.arn]
     }
   }
+
+  # ListBucket を許可する理由:
+  # 許可が無いと、存在しないキー（SPA の /home などのディープリンク）への GET に対し
+  # S3 は「情報秘匿のため」403(AccessDenied) を返す。ListBucket を許可すると本来の 404(NoSuchKey) を返す。
+  # CloudFront 側では SPA フォールバックを「404 のみ index.html」に限定したいので、
+  # 静的ファイル欠損を 404 にしておく必要がある（API の 403 を index.html に化けさせないため）。
+  statement {
+    sid       = "AllowCloudFrontListForNotFound"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.frontend.arn]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.main.arn]
+    }
+  }
 }
 
 resource "aws_s3_bucket_policy" "frontend" {

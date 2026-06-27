@@ -74,6 +74,12 @@ resource "aws_ecs_task_definition" "backend" {
           name  = "APP_MEDIA_BASE_URL"
           value = "https://${aws_cloudfront_distribution.main.domain_name}"
         },
+        # CORS 許可オリジン。CloudFront 配下では同一オリジンでもブラウザが Origin ヘッダを送るため、
+        # 本番ドメインを許可しないと Spring の CORS フィルタが 403 を返し、ログイン等が全て失敗する。
+        {
+          name  = "APP_CORS_ALLOWED_ORIGINS"
+          value = "https://${aws_cloudfront_distribution.main.domain_name}"
+        },
         # 本番プロファイル。Cookie の Secure 付与など環境差をここで切り替える想定。
         { name = "SPRING_PROFILES_ACTIVE", value = var.env },
       ]
