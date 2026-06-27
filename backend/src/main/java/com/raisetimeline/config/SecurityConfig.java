@@ -104,6 +104,15 @@ public class SecurityConfig {
                                         .requestMatchers("/error")
                                         .permitAll()
                                         /*
+                                         * Actuator のヘルスチェックを認証不要にする。
+                                         * AWS の ALB / ECS が /actuator/health を「未認証で」定期的に叩いて
+                                         * コンテナの生死を判定する。ここを認証必須にすると常に 401 となり、
+                                         * 正常なタスクまで unhealthy 扱いされてサービスが起動できない。
+                                         * health はアプリの稼働状態(UP/DOWN)のみで機密を含まないため permitAll が適切。
+                                         */
+                                        .requestMatchers("/actuator/health", "/actuator/health/**")
+                                        .permitAll()
+                                        /*
                                          * Swagger UI / OpenAPI 仕様 JSON は認証不要にする。
                                          * 開発者が API 仕様書をブラウザで参照するためのエンドポイントで、
                                          * 機密情報は含まれない（仕様の構造のみ）。

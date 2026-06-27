@@ -41,6 +41,12 @@ dependencies {
     // @NotBlank, @Email, @Size などのアノテーションが使えるようになる
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
+    // === Actuator（ヘルスチェック等の運用エンドポイント） ===
+    // /actuator/health を提供する。AWS の ALB / ECS がこの URL を叩いて
+    // 「コンテナが正常に稼働しているか」を判定する（異常なタスクは振り分け対象から外される）。
+    // health は DB 接続状態も含めて UP/DOWN を返すため、DB 断のタスクを検知できる。
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+
     // === MyBatis（ORM） ===
     // SQL を XML に書いて Java のメソッドに対応させる O/R マッパー
     // Spring Data JPA（自動SQL生成）ではなく、手書き SQL が明示的で学習しやすい MyBatis を採用
@@ -110,6 +116,19 @@ dependencies {
 tasks.withType<Test> {
     // JUnit 5 (JUnit Platform) でテストを実行する設定
     useJUnitPlatform()
+}
+
+/*
+ * 通常の jar タスク（いわゆる "plain jar"）を無効化する。
+ *
+ * Spring Boot は bootJar（実行可能な fat jar）と jar（依存を含まない plain jar）の
+ * 2 種類を生成する。両方あると build/libs に *.jar が 2 つでき、Dockerfile で
+ * ワイルドカード（*.jar）コピーするときにどちらか判別できず失敗する。
+ * デプロイで使うのは bootJar だけなので、plain jar は作らないようにして
+ * build/libs に bootJar 1 つだけが残るようにする。
+ */
+tasks.named<Jar>("jar") {
+    enabled = false
 }
 
 /*

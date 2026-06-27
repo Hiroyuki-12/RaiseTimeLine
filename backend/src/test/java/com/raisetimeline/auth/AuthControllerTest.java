@@ -70,7 +70,8 @@ class AuthControllerTest {
     @BeforeEach
     void setUp() {
         // 7日 = 604800000ms 相当のリフレッシュトークン有効期限を渡す。
-        AuthController controller = new AuthController(authService, 604_800_000L);
+        // ローカル相当として cookieSecure=false で組み立てる（既存ケースは Secure 無しを前提）。
+        AuthController controller = new AuthController(authService, 604_800_000L, false);
         mockMvc =
                 MockMvcBuilders.standaloneSetup(controller)
                         .setControllerAdvice(new GlobalExceptionHandler())
@@ -210,6 +211,60 @@ class AuthControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.accessToken").value("new-access"))
                     .andExpect(cookie().value("refresh_token", "new-refresh"));
+        }
+    }
+
+    @Nested
+    @DisplayName("Cookie の Secure 属性（プロファイル別）")
+    class CookieSecure {
+
+        /**
+         * 指定した cookieSecure で組み立てた専用 MockMvc を返す。 setUp() の共有インスタンスは false 固定のため、true
+         * の検証はここで個別に組み立てる。
+         */
+        private MockMvc mockMvcWithSecure(boolean secure) {
+            AuthController controller = new AuthController(authService, 604_800_000L, secure);
+            return MockMvcBuilders.standaloneSetup(controller)
+                    .setControllerAdvice(new GlobalExceptionHandler())
+                    .build();
+        }
+
+        private void stubLogin() {
+            when(authService.login(any(LoginRequest.class)))
+                    .thenReturn(
+                            new AuthService.AuthResult(
+                                    new AuthResponse("access-jwt", 1L, "alice", "アリス"),
+                                    "refresh-token-value"));
+        }
+
+        @Test
+        @DisplayName("本番相当(cookieSecure=true): Cookie に Secure 属性が付く")
+        void 本番はSecure付き() throws Exception {
+            stubLogin();
+            LoginRequest req = new LoginRequest("alice@example.com", "Pass1234");
+
+            mockMvcWithSecure(true)
+                    .perform(
+                            post("/api/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(req)))
+                    .andExpect(status().isOk())
+                    .andExpect(cookie().secure("refresh_token", true));
+        }
+
+        @Test
+        @DisplayName("ローカル相当(cookieSecure=false): Cookie に Secure 属性が付かない")
+        void ローカルはSecure無し() throws Exception {
+            stubLogin();
+            LoginRequest req = new LoginRequest("alice@example.com", "Pass1234");
+
+            mockMvcWithSecure(false)
+                    .perform(
+                            post("/api/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(req)))
+                    .andExpect(status().isOk())
+                    .andExpect(cookie().secure("refresh_token", false));
         }
     }
 
