@@ -144,7 +144,9 @@ terraform destroy
 
 ## 注意点
 
-- ALB のヘルスチェックは `/actuator/health` を叩く。backend に Spring Boot Actuator を追加する
-  改修（別Issue）が完了するまで、タスクは unhealthy のままになる。
-- `application.properties` を環境変数で上書きする改修（別Issue）が必要。タスク定義は
-  `SPRING_DATASOURCE_URL` 等の環境変数と SSM 機密値を注入する前提で書かれている。
+- ALB のヘルスチェックは `/actuator/health` を叩く。backend には Spring Boot Actuator が
+  追加済み（`build.gradle` の `spring-boot-starter-actuator`）で、DB 接続状態を含めて UP/DOWN を返す。
+- `application.properties` は環境変数で上書きできるよう対応済み（`${ENV_VAR:default}` 形式）。
+  タスク定義は `SPRING_DATASOURCE_URL` 等の環境変数と SSM 機密値を注入する前提で書かれている。
+- backend を更新したら、イメージを rebuild & ECR push 後に
+  `aws ecs update-service --force-new-deployment` でローリング更新する（`terraform apply` は不要）。

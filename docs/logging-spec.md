@@ -18,7 +18,7 @@
 
 - **対象**: バックエンド（Spring Boot）のサーバーログ
 - **対象外**: フロントエンド（ブラウザ）のログ。ブラウザ起因のエラー収集は本仕様の範囲外
-- **対象外**: アプリ外のインフラログ（Nginx / RDS / ALB 等）。それぞれの基盤側で別途扱う
+- **対象外**: アプリ外のインフラログ（CloudFront / ALB / RDS 等）。それぞれの基盤側で別途扱う
 
 ## 2. 前提と基本方針
 
@@ -32,9 +32,9 @@
 
 ### 出力先を stdout のみとする理由
 
-- アプリ側でファイル出力やローテーションを抱えると、コンテナ環境（Docker / EC2 上 Docker / 将来の ECS 等）でディスクが圧迫されるリスクがある
+- アプリ側でファイル出力やローテーションを抱えると、コンテナ環境（ローカル Docker / ECS Fargate 等）でディスクが圧迫されるリスクがある
 - 12-factor app の「Logs」原則に従い、アプリは stdout に流すだけ・収集と保管は実行基盤側に任せる方針が運用上シンプル
-- 現在の AWS 構成（EC2 + Docker、`docs/aws-architecture.md` 参照）でも `docker logs` 経由で参照可能
+- 現在の AWS 構成（ECS Fargate、`docs/aws-architecture.md` 参照）では stdout が `awslogs` ドライバ経由で CloudWatch Logs に集約される
 
 ## 3. ログレベルの使い分け
 
@@ -106,7 +106,6 @@ INFO レベルの業務ログ:
   "process.thread.name": "http-nio-8080-exec-3",
   "service.name": "raise-time-line",
   "trace.id": "8b2f6c9e-1a2b-4c3d-9e0f-112233445566",
-  "user.id": 7,
   "user.email_masked": "ot***@gmail.com"
 }
 ```
@@ -117,12 +116,12 @@ ERROR レベルの例外ログ:
 {
   "@timestamp": "2026-05-09T10:24:01.456Z",
   "log.level": "ERROR",
-  "log.logger": "com.raisetimeline.common.GlobalExceptionHandler",
+  "log.logger": "com.raisetimeline.exception.GlobalExceptionHandler",
   "message": "未捕捉例外を検出しました",
   "process.thread.name": "http-nio-8080-exec-5",
   "service.name": "raise-time-line",
   "trace.id": "1c4d7e0a-2b3c-4d5e-8f9a-99aabbccddee",
-  "user.id": 7,
+  "user.email_masked": "ot***@gmail.com",
   "error.type": "java.lang.NullPointerException",
   "error.message": "Cannot invoke \"User.getId()\" because \"user\" is null",
   "error.stack_trace": "java.lang.NullPointerException: ...\n\tat ..."
@@ -170,7 +169,7 @@ ERROR レベルの例外ログ:
 |------|--------|----------|
 | ローカル（`./gradlew bootRun`） | ターミナル | そのまま画面で確認 |
 | ローカル（Docker Compose） | コンテナの stdout | `docker compose logs backend` |
-| 本番（EC2 + Docker） | コンテナの stdout | `docker logs <container>`。必要に応じて CloudWatch Logs エージェントで集約（別途検討） |
+| 本番（ECS Fargate） | コンテナの stdout → CloudWatch Logs（`awslogs` ログドライバ） | CloudWatch Logs コンソール / `aws logs tail`。JSON 1 行ログをそのまま保存し、検索時に JSON フィルタで個別フィールドへアクセスする |
 
 ### ローテーションと永続化
 
@@ -204,20 +203,19 @@ log.info("ポスト作成: postId={}, userId={}", saved.id(), user.getId());
 
 このパターンは維持する。SLF4J のプレースホルダ形式 (`{}`) を使い、文字列連結 (`"... " + var`) は禁止（DEBUG 無効時の不要な文字列生成を避けるため）。
 
-## 9. 実装計画（別 Issue で対応）
+## 9. 実装状況
 
-本仕様書のマージ後、以下の作業項目を別 Issue として起票し実装する。
+本仕様の主要項目は実装済み。対応箇所は以下のとおり。
 
-| # | 作業項目 | 概要 |
-|---|----------|------|
-| 1 | application.properties で構造化ログを有効化 | `logging.structured.format.console=ecs` を追加。`spring.application.name` を確認 |
-| 2 | リクエスト相関フィルタの実装 | `trace.id` を MDC に仕込む `OncePerRequestFilter`。レスポンスヘッダ `X-Trace-Id` も付与 |
-| 3 | JwtAuthFilter の拡張 | 認証成功時に `user.id` / `user.email_masked` を MDC に追加。`finally` で `MDC.clear()` |
-| 4 | アクセスログフィルタの実装 | メソッド / パス / ステータス / 処理時間を INFO で 1 行出力 |
-| 5 | マスキングユーティリティの作成 | `LogMaskUtil.maskEmail(String)` 等。単体テスト付き |
-| 6 | `@ControllerAdvice` の整理 | 未捕捉例外を ERROR ログで 1 回だけ出すよう統一 |
-| 7 | サンプルログの動作確認 | 主要 API（ログイン・投稿作成・いいね等）を叩き、想定どおりの JSON が出ることを確認 |
-| 8 | 非機能要件ドキュメントの更新 | [docs/non-functional-requirements.md](non-functional-requirements.md) のログ行を本仕様書へのリンクに差し替え |
+| # | 作業項目 | 状況 | 実装箇所 |
+|---|----------|------|----------|
+| 1 | application.properties で構造化ログを有効化 | ✅ 実装済み | `application.properties`（`logging.structured.format.console=ecs` / `spring.application.name=raise-time-line`） |
+| 2 | リクエスト相関フィルタの実装 | ✅ 実装済み | `common/logging/RequestTraceFilter.java`（`trace.id` を MDC に仕込み、`X-Trace-Id` を付与） |
+| 3 | JwtAuthFilter の拡張 | ✅ 実装済み（`user.id` は除く） | `auth/JwtAuthFilter.java`（認証成功時に `user.email_masked` を MDC へ。`finally` で `MDC.clear()`）。`user.id` は JWT に id クレームが無いため未対応 |
+| 4 | アクセスログフィルタの実装 | ✅ 実装済み | `common/logging/AccessLogFilter.java`（メソッド / パス / ステータス / 処理時間を 1 行 INFO） |
+| 5 | マスキングユーティリティの作成 | ✅ 実装済み | `common/logging/LogMaskUtil.java` |
+| 6 | `@ControllerAdvice` の整理 | ✅ 実装済み | 未捕捉例外を ERROR で 1 回だけ出力 |
+| 7 | サンプルログの動作確認 | ✅ 実装済み | 主要 API で想定どおりの JSON 出力を確認済み |
 
 ## 10. 参考リンク
 
