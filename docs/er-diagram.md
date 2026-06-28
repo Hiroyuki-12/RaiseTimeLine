@@ -8,7 +8,8 @@ erDiagram
         bigint id PK "主キー AUTO_INCREMENT"
         varchar email "メールアドレス UNIQUE"
         varchar password_hash "BCryptハッシュ"
-        varchar username "ユーザー名 UNIQUE"
+        varchar username "ユーザー名(@handle) UNIQUE"
+        varchar display_name "表示名(日本語可)"
         text avatar_url "S3アバター画像URL nullable"
         varchar bio "自己紹介 nullable"
         timestamp created_at "作成日時"
@@ -19,7 +20,7 @@ erDiagram
         bigint id PK "主キー AUTO_INCREMENT"
         bigint user_id FK "投稿者"
         varchar content "投稿テキスト 1〜280文字"
-        text image_url "S3画像URL nullable"
+        varchar image_url "S3画像URL nullable"
         timestamp created_at "作成日時"
         timestamp updated_at "更新日時"
     }
@@ -66,7 +67,8 @@ erDiagram
 | id | BIGINT | NOT NULL | AUTO_INCREMENT | 主キー |
 | email | VARCHAR(255) | NOT NULL | — | メールアドレス |
 | password_hash | VARCHAR(255) | NOT NULL | — | BCryptハッシュ |
-| username | VARCHAR(50) | NOT NULL | — | ユーザー名 |
+| username | VARCHAR(50) | NOT NULL | — | ユーザー名（英数字・_・- のみ。@handle 兼ログイン識別子） |
+| display_name | VARCHAR(50) | NOT NULL | — | 表示名（日本語可。画面表示用。V3 で追加） |
 | avatar_url | TEXT | NULL | NULL | S3アバター画像URL |
 | bio | VARCHAR(160) | NULL | NULL | 自己紹介 |
 | created_at | TIMESTAMP | NOT NULL | 現在時刻 | 作成日時 |
@@ -84,16 +86,15 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|---|------|-----------|------|
 | id | BIGINT | NOT NULL | AUTO_INCREMENT | 主キー |
-| user_id | BIGINT | NOT NULL | — | FK: users.id |
+| user_id | BIGINT | NOT NULL | — | FK: users.id（CASCADE DELETE） |
 | content | VARCHAR(280) | NOT NULL | — | 投稿テキスト |
-| image_url | TEXT | NULL | NULL | S3画像URL |
+| image_url | VARCHAR(500) | NULL | NULL | S3画像URL（V8 で追加） |
 | created_at | TIMESTAMP | NOT NULL | 現在時刻 | 作成日時 |
 | updated_at | TIMESTAMP | NOT NULL | 現在時刻 | 更新日時 |
 
 **インデックス**
 - PRIMARY KEY: `id`
-- INDEX: `user_id` — ユーザー別投稿一覧取得を高速化
-- INDEX: `created_at DESC` — タイムライン新着順取得を高速化
+- INDEX: `created_at DESC` (`idx_posts_created_at`) — タイムライン新着順取得を高速化
 
 ---
 
@@ -140,9 +141,9 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|---|------|-----------|------|
 | id | BIGINT | NOT NULL | AUTO_INCREMENT | 主キー |
-| follower_id | BIGINT | NOT NULL | — | FK: users.id（フォローする側） |
-| followee_id | BIGINT | NOT NULL | — | FK: users.id（フォローされる側） |
-| created_at | TIMESTAMP | NOT NULL | 現在時刻 | フォロー日時 |
+| follower_id | BIGINT | NOT NULL | — | FK: users.id（フォローする側・CASCADE DELETE） |
+| followee_id | BIGINT | NOT NULL | — | FK: users.id（フォローされる側・CASCADE DELETE） |
+| created_at | TIMESTAMP | NULL | 現在時刻 | フォロー日時（DEFAULT CURRENT_TIMESTAMP） |
 
 **インデックス**
 - PRIMARY KEY: `id`
@@ -152,12 +153,33 @@ erDiagram
 
 ---
 
+### refresh_tokens
+
+アクセストークン（15分）失効時に再発行するためのリフレッシュトークンを管理する（V2 で作成）。HttpOnly Cookie で送られる不透明トークン（UUID）を DB 側で検証する。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|---|------|-----------|------|
+| id | BIGINT | NOT NULL | AUTO_INCREMENT | 主キー |
+| user_id | BIGINT | NOT NULL | — | FK: users.id（CASCADE DELETE） |
+| token | VARCHAR(512) | NOT NULL | — | リフレッシュトークン文字列（UUID） |
+| expires_at | TIMESTAMP | NOT NULL | — | 有効期限（7日間） |
+| created_at | TIMESTAMP | NOT NULL | 現在時刻 | 作成日時 |
+
+**インデックス**
+- PRIMARY KEY: `id`
+- UNIQUE: `token`
+- INDEX: `token` — トークン検証を高速化
+- INDEX: `user_id` — ユーザー単位の一括失効（全デバイスログアウト）用
+
+---
+
 ## TypeScript 型定義（フロントエンド参考）
 
 ```ts
 type User = {
   id: number;
   username: string;
+  displayName: string;
   avatarUrl: string | null;
   bio: string | null;
   followingCount: number;

@@ -37,7 +37,7 @@ X（旧 Twitter）のタイムライン形式をベースにした学習目的�
 ```
 RaiseTimeLine/
 ├── backend/             Spring Boot 4.0 + Java 25 (REST API)
-├── frontend/            React 19 + TypeScript + Vite + Tailwind CSS (SPA)
+├── frontend/            React 19 + TypeScript + Vite (SPA)
 ├── infra/               Terraform: AWS デプロイ用 IaC
 ├── compose.yaml         PostgreSQL 16 (ローカル開発用)
 ├── docs/                設計・要件・インフラ構成ドキュメント
@@ -54,15 +54,16 @@ RaiseTimeLine/
 - React 19.2 / React DOM 19.2
 - TypeScript 6.0
 - Vite 8.0
-- Tailwind CSS 4.2
-- Axios 1.15
-- ESLint 9 / Prettier 3
+- Axios 1.16
+- ESLint 10
+- Vitest 4 + React Testing Library + MSW
+- スタイリング: インラインスタイル + プレーン CSS（Tailwind は不使用）
 
 ### バックエンド
 
 - Java 25 (LTS)
 - Spring Boot 4.0.0
-- Spring Data JPA (Hibernate) + Flyway
+- MyBatis + Flyway
 - Spring Security + JWT (JJWT)
 - AWS SDK for Java v2 (S3 クライアント)
 - Gradle 9.3.1 (Kotlin DSL, Wrapper 同梱)
@@ -74,7 +75,7 @@ RaiseTimeLine/
   - AWS デプロイ時: RDS db.t3.micro
 - AWS デプロイ: CloudFront + S3 + ECS Fargate + ALB + RDS（EC2 不使用。詳細は [docs/aws-architecture.md](docs/aws-architecture.md)）
 - IaC: Terraform 1.6+ (`infra/`)
-- 成果物配布: GitHub Releases (`make release`)
+- バックエンド配布: Docker イメージを ECR へ push（ECS Fargate が pull して実行）
 
 ## ローカル開発環境のセットアップ
 
@@ -118,8 +119,8 @@ npm run dev
 | `frontend/` | `npm run dev` | 開発サーバ起動 |
 | `frontend/` | `npm run build` | 型チェック + プロダクションビルド |
 | `frontend/` | `npm run lint` | ESLint 実行 |
-| `frontend/` | `npm run typecheck` | TypeScript 型チェック (`tsc -b --noEmit`) |
-| `frontend/` | `npm run format` | Prettier 整形 |
+| `frontend/` | `npm test` | Vitest 実行（ユニット / 統合テスト） |
+| `frontend/` | `npm run test:coverage` | Vitest カバレッジ計測 |
 | `backend/` | `./gradlew bootRun` | アプリ起動 |
 | `backend/` | `./gradlew test` | テスト実行 |
 | `backend/` | `./gradlew spotlessCheck` | コードフォーマット検査 (Spotless / google-java-format) |

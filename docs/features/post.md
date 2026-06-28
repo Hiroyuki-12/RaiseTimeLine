@@ -2,10 +2,10 @@
 
 ## 概要
 
-テキスト（最大280文字）を投稿する機能。
+テキスト（最大280文字）＋任意の画像1枚を投稿する機能。
 投稿はタイムラインに表示され、投稿者本人のみ編集・削除できる。
 
-> **実装済み**: テキスト投稿・編集・削除。画像添付は今後実装予定。
+> **実装済み**: テキスト投稿・画像添付（S3 保存）・編集・削除。
 
 ---
 
@@ -16,28 +16,33 @@
 | 項目 | 型 | 必須 | バリデーション |
 |------|---|------|---------------|
 | テキスト | 文字列 | ○ | 1〜280文字 |
+| 画像 | ファイル | △（任意） | JPEG / PNG・2MB 以下・1枚 |
 
 ### 処理フロー
 
 1. サイドバーの「投稿する」ボタン または タイムライン上部の投稿欄をクリック
 2. モーダルが開く
-3. テキストを入力（1〜280文字）
+3. テキストを入力（1〜280文字）。必要なら画像を1枚添付する
 4. 「投稿」ボタンをクリック
-5. `posts` テーブルへ保存
-6. タイムラインの先頭に即時追加（楽観的更新）
+5. 画像があれば AWS SDK v2 で S3 へアップロードし、URL を取得
+6. `posts` テーブルへ保存（画像 URL は `image_url` に格納）
+7. タイムラインの先頭に即時追加（楽観的更新）
 
 ### API
 
+`multipart/form-data` で送信する（`content` フィールドにテキスト、`image` フィールドに画像ファイル）。
+
 | Method | Path | 認証 | リクエスト | レスポンス |
 |--------|------|------|----------|---------|
-| POST | `/api/posts` | JWT必須 | `{ content: string }` | 201 `PostResponse` |
+| POST | `/api/posts` | JWT必須 | `multipart/form-data`（`content`: string・必須 / `image`: file・任意） | 201 `PostResponse` |
 
 ### エラーケース
 
 | ケース | 対応 |
 |--------|------|
-| テキスト未入力 | 投稿ボタンをdisabledにする |
-| 文字数オーバー（281文字以上） | リアルタイムで文字数カウントを赤く表示、投稿ボタンをdisabled |
+| テキスト未入力 | 投稿ボタンをdisabledにする／サーバー側でも 400 を返す |
+| 文字数オーバー（281文字以上） | リアルタイムで文字数カウントを赤く表示、投稿ボタンをdisabled。サーバー側でも 400 |
+| 画像形式・サイズ不正（JPEG/PNG 以外・2MB 超） | 400 バリデーションエラー |
 | 未認証 | 401 エラー |
 
 ---
@@ -117,7 +122,7 @@
 
 ## PostResponse（レスポンス形式）
 
-いいね数・コメント数・いいね済みフラグを含む。タイムライン・詳細・作成・更新すべてのレスポンスで共通。
+投稿者情報（authorId / authorUsername / authorDisplayName / authorAvatarUrl）、添付画像 URL（imageUrl）、いいね数・コメント数・いいね済みフラグを含む。タイムライン・詳細・作成・更新すべてのレスポンスで共通。`authorAvatarUrl` と `imageUrl` は未設定時は `null`。
 
 ```json
 {
@@ -126,6 +131,8 @@
   "authorId": 2,
   "authorUsername": "testuser01",
   "authorDisplayName": "テストユーザー",
+  "authorAvatarUrl": "https://.../avatar.png",
+  "imageUrl": "https://.../post-image.png",
   "createdAt": "2026-05-06T15:30:00",
   "updatedAt": "2026-05-06T15:30:00",
   "likeCount": 12,
@@ -143,6 +150,7 @@
 | id | BIGSERIAL | ○ | 主キー（自動採番） |
 | user_id | BIGINT | ○ | 投稿者（FK: users.id, CASCADE DELETE） |
 | content | VARCHAR(280) | ○ | 投稿テキスト |
+| image_url | VARCHAR(500) | — | S3 画像 URL（画像なし投稿は NULL。V8 で追加） |
 | created_at | TIMESTAMP | ○ | 投稿日時（DB側で NOW() 自動設定） |
 | updated_at | TIMESTAMP | ○ | 更新日時（DB側で NOW() 自動設定） |
 
